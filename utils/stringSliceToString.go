@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func SliceToString[T fmt.Stringer](s []T) string {
+func StringerSliceToString[T fmt.Stringer](s []T) string {
 	if len(s) == 0 {
 		return ""
 	}

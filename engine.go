@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"stockhuman/lichess"
 )
 
 type Engine struct {
@@ -15,11 +18,11 @@ type Engine struct {
 	Threads int
 	MultiPV int
 
-	LichessSpeeds    string
-	LichessRatingMin int
-	LichessRatingMax int
-	LichessModes     string
-	LichessSince     string
+	LichessSpeeds    lichess.Speeds
+	LichessRatingMin lichess.Rating
+	LichessRatingMax lichess.Rating
+	LichessSince     lichess.Date
+	LichessUntil     lichess.Date
 }
 
 func NewEngine() *Engine {
@@ -30,8 +33,8 @@ func NewEngine() *Engine {
 		defaultLichessSpeeds    = "ultraBullet,bullet,blitz,rapid,classical,correspondence"
 		defaultLichessRatingMin = 1600
 		defaultLichessRatingMax = 2500
-		defaultLichessModes     = "rated"
 		defaultLichessSince     = "2012-12"
+		defaultLichessUntil     = "3000-12"
 	)
 
 	e := Engine{
@@ -75,15 +78,14 @@ func NewEngine() *Engine {
 				ComboVars: []string{"0", "1000", "1200", "1400", "1600", "1800", "2000", "2200", "2500"},
 			},
 			{
-				Name:      "Lichess_Modes",
-				Type:      "combo",
-				Default:   defaultLichessModes,
-				ComboVars: []string{"rated", "casual", "rated,casual"},
-			},
-			{
 				Name:    "Lichess_Since",
 				Type:    "string",
 				Default: defaultLichessSince,
+			},
+			{
+				Name:    "Lichess_Until",
+				Type:    "string",
+				Default: defaultLichessUntil,
 			},
 		},
 	}
@@ -103,7 +105,7 @@ func NewEngine() *Engine {
 	if e.MultiPV != defaultMultiPV {
 		panic(fmt.Errorf("field MultiPV '%d' != default '%d'", e.MultiPV, defaultMultiPV))
 	}
-	if e.LichessSpeeds != defaultLichessSpeeds {
+	if e.LichessSpeeds.String() != defaultLichessSpeeds {
 		panic(fmt.Errorf("field LichessSpeeds '%s' != default '%s'", e.LichessSpeeds, defaultLichessSpeeds))
 	}
 	if e.LichessRatingMin != defaultLichessRatingMin {
@@ -112,11 +114,11 @@ func NewEngine() *Engine {
 	if e.LichessRatingMax != defaultLichessRatingMax {
 		panic(fmt.Errorf("field LichessRatingMax '%d' != default '%d'", e.LichessRatingMax, defaultLichessRatingMax))
 	}
-	if e.LichessModes != defaultLichessModes {
-		panic(fmt.Errorf("field LichessModes '%s' != default '%s'", e.LichessModes, defaultLichessModes))
+	if e.LichessSince.String() != defaultLichessSince {
+		panic(fmt.Errorf("field LichessSince '%s' != default '%s'", e.LichessSince.String(), defaultLichessSince))
 	}
-	if e.LichessSince != defaultLichessSince {
-		panic(fmt.Errorf("field LichessSince '%s' != default '%s'", e.LichessSince, defaultLichessSince))
+	if e.LichessUntil.String() != defaultLichessUntil {
+		panic(fmt.Errorf("field LichessUntil '%s' != default '%s'", e.LichessUntil.String(), defaultLichessUntil))
 	}
 
 	return &e
@@ -137,9 +139,9 @@ func (e *Engine) ParseInput(line string) {
 	case "setoption":
 		e.handleSetOption(parts[1:])
 	case "ucinewgame":
-		// no-op
+		e.handleUCINewGame()
 	case "isready":
-		uciWriteLine("readyok")
+		e.handleIsReady()
 	case "position":
 		uciWriteLine("info string 'position' TODO")
 	case "go":
@@ -172,12 +174,21 @@ func (e *Engine) handleUCI() {
 	uciWriteLine(sb.String())
 }
 
+func (e *Engine) handleUCINewGame() {
+	// no-op
+}
+
+func (e *Engine) handleIsReady() {
+	uciWriteLine("readyok")
+}
+
 func (e *Engine) handleSetOption(args []string) {
 	name, value := e.parseSetOption(args)
 	if name == "" {
 		return
 	}
 
+	// check setoption name found in list
 	var uciOption UCIOption
 	for i := 0; i < len(e.UCIOptions); i++ {
 		if strings.EqualFold(e.UCIOptions[i].Name, name) {
@@ -186,6 +197,7 @@ func (e *Engine) handleSetOption(args []string) {
 		}
 	}
 
+	// setoption name not found in list
 	if uciOption.Name == "" {
 		return
 	}
@@ -214,14 +226,42 @@ func (e *Engine) handleSetOption(args []string) {
 	case "string":
 		switch strings.ToLower(uciOption.Name) {
 		case "lichess_speeds":
-			// TODO: validate items in list
-			e.LichessSpeeds = value
+			speeds := strings.Split(value, ",")
+			lichessSpeeds := make(lichess.Speeds, 0, len(speeds))
+			for _, speed := range speeds {
+				// check valid enum value
+				canonical, ok := lichess.ValidSpeeds.Contains(speed)
+				if !ok {
+					continue
+				}
+				// check not duplicate
+				if _, ok := lichessSpeeds.Contains(speed); ok {
+					continue
+				}
+
+				lichessSpeeds = append(lichessSpeeds, canonical)
+			}
+
+			if len(lichessSpeeds) == 0 {
+				return
+			}
+
+			sort.Sort(lichessSpeeds)
+
+			e.LichessSpeeds = lichessSpeeds
+
 		case "lichess_since":
 			dt, err := time.Parse("2006-01", value)
 			if err != nil {
 				return
 			}
-			e.LichessSince = fmt.Sprintf("%04d-%02d", dt.Year(), dt.Month())
+			e.LichessSince = lichess.Date{Year: dt.Year(), Month: int(dt.Month())}
+		case "lichess_until":
+			dt, err := time.Parse("2006-01", value)
+			if err != nil {
+				return
+			}
+			e.LichessUntil = lichess.Date{Year: dt.Year(), Month: int(dt.Month())}
 		}
 
 	case "combo":
@@ -238,19 +278,17 @@ func (e *Engine) handleSetOption(args []string) {
 
 		switch strings.ToLower(uciOption.Name) {
 		case "lichess_rating_min":
-			n, err := strconv.Atoi(selectedValue)
-			if err != nil {
+			canonical, ok := lichess.ValidRatings.Contains(selectedValue)
+			if !ok {
 				return
 			}
-			e.LichessRatingMin = n
+			e.LichessRatingMin = canonical
 		case "lichess_rating_max":
-			n, err := strconv.Atoi(selectedValue)
-			if err != nil {
+			canonical, ok := lichess.ValidRatings.Contains(selectedValue)
+			if !ok {
 				return
 			}
-			e.LichessRatingMax = n
-		case "lichess_modes":
-			e.LichessModes = selectedValue
+			e.LichessRatingMax = canonical
 		}
 	}
 }
@@ -288,14 +326,14 @@ func (e *Engine) parseSetOption(args []string) (string, string) {
 
 func (e *Engine) handleShow() {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("info string option %s value %v\n", "Hash", e.Hash))
-	sb.WriteString(fmt.Sprintf("info string option %s value %v\n", "Threads", e.Threads))
-	sb.WriteString(fmt.Sprintf("info string option %s value %v\n", "MultiPV", e.MultiPV))
-	sb.WriteString(fmt.Sprintf("info string option %s value %v\n", "Lichess_Speeds", e.LichessSpeeds))
-	sb.WriteString(fmt.Sprintf("info string option %s value %v\n", "Lichess_Rating_Min", e.LichessRatingMin))
-	sb.WriteString(fmt.Sprintf("info string option %s value %v\n", "Lichess_Rating_Max", e.LichessRatingMax))
-	sb.WriteString(fmt.Sprintf("info string option %s value %v\n", "Lichess_Modes", e.LichessModes))
-	sb.WriteString(fmt.Sprintf("info string option %s value %v\n", "Lichess_Since", e.LichessSince))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Hash", e.Hash))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Threads", e.Threads))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "MultiPV", e.MultiPV))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %s\n", "Lichess_Speeds", e.LichessSpeeds.String()))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Lichess_Rating_Min", e.LichessRatingMin))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Lichess_Rating_Max", e.LichessRatingMax))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %s\n", "Lichess_Since", e.LichessSince.String()))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %s\n", "Lichess_Until", e.LichessUntil.String()))
 
 	uciWriteLine(sb.String())
 }

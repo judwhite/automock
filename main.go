@@ -23,12 +23,11 @@ const (
 )
 
 type CLI struct {
+	FEN     string          `name:"fen" default:"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"`
 	Speeds  lichess.Speeds  `name:"speeds" default:"blitz,rapid"`
 	Ratings lichess.Ratings `name:"ratings" default:"1600,1800,2000,2200,2500"`
-	FEN     string          `name:"fen" default:"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"`
-	Modes   lichess.Modes   `name:"modes" default:"rated"`
-	Since   lichess.Date    `name:"since" default:"2024-01"`
-	History bool            `name:"history" default:"true"`
+	Since   lichess.Date    `name:"since" default:"2022-12"`
+	Until   lichess.Date    `name:"until" default:""`
 }
 
 func main() {
@@ -107,16 +106,13 @@ func uciLoop() {
 }
 
 func getSuggestedMove(cli CLI) {
-	req := lichess.OpeningExplorerRequest{
-		Speeds:          cli.Speeds,
-		Ratings:         cli.Ratings,
-		Since:           cli.Since,
-		Modes:           cli.Modes,
-		FEN:             cli.FEN,
-		History:         cli.History,
-		OmitTopGames:    true,
-		OmitRecentGames: true,
-	}
+	req := lichess.NewOpeningExplorerRequest()
+
+	req.FEN = cli.FEN
+	req.Speeds = cli.Speeds
+	req.Ratings = cli.Ratings
+	req.Since = cli.Since
+	req.Until = cli.Until
 
 	resp, err := lichess.GetLichessGames(context.TODO(), req)
 	if err != nil {
