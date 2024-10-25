@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"stockhuman/lichess"
@@ -23,6 +24,10 @@ type Engine struct {
 	LichessRatingMax lichess.Rating
 	LichessSince     lichess.Date
 	LichessUntil     lichess.Date
+
+	fen         string
+	moves       []string
+	positionMtx sync.RWMutex
 }
 
 func NewEngine() *Engine {
@@ -91,8 +96,8 @@ func NewEngine() *Engine {
 	}
 
 	for _, uciOption := range e.UCIOptions {
-		setOption := fmt.Sprintf("name %s value %s", uciOption.Name, uciOption.Default)
-		e.handleSetOption(strings.Split(setOption, " "))
+		setOption := fmt.Sprintf("setoption name %s value %s", uciOption.Name, uciOption.Default)
+		e.handleSetOption(setOption)
 	}
 
 	// runtime self-check. could be moved to a unit test, but, y'know.
@@ -137,13 +142,13 @@ func (e *Engine) ParseInput(line string) {
 	case "uci":
 		e.handleUCI()
 	case "setoption":
-		e.handleSetOption(parts[1:])
+		e.handleSetOption(line)
 	case "ucinewgame":
 		e.handleUCINewGame()
 	case "isready":
 		e.handleIsReady()
 	case "position":
-		uciWriteLine("info string 'position' TODO")
+		e.handlePosition(line)
 	case "go":
 		uciWriteLine("info string 'go' TODO")
 	case "ponderhit":
@@ -152,6 +157,8 @@ func (e *Engine) ParseInput(line string) {
 		uciWriteLine("info string 'stop' TODO")
 	case "show":
 		e.handleShow()
+	case "d":
+		e.handleD()
 	case "quit":
 		os.Exit(1)
 	default:
@@ -175,15 +182,15 @@ func (e *Engine) handleUCI() {
 }
 
 func (e *Engine) handleUCINewGame() {
-	// no-op
+	e.handlePosition("position startpos")
 }
 
 func (e *Engine) handleIsReady() {
 	uciWriteLine("readyok")
 }
 
-func (e *Engine) handleSetOption(args []string) {
-	name, value := e.parseSetOption(args)
+func (e *Engine) handleSetOption(line string) {
+	name, value := e.parseSetOption(line)
 	if name == "" {
 		return
 	}
@@ -293,29 +300,31 @@ func (e *Engine) handleSetOption(args []string) {
 	}
 }
 
-func (e *Engine) parseSetOption(args []string) (string, string) {
-	if len(args) < 3 {
+func (e *Engine) parseSetOption(line string) (string, string) {
+	parts := strings.Split(line, " ")
+	// setoption name <name> value <value>
+	if len(parts) < 5 {
 		return "", ""
 	}
-	if args[0] != "name" {
+	if parts[0] != "setoption" || parts[1] != "name" {
 		return "", ""
 	}
 
-	optionName := args[1]
-	i := 2
-	for ; i < len(args); i++ {
-		if args[i] == "value" {
+	optionName := parts[2]
+	i := 3
+	for ; i < len(parts); i++ {
+		if parts[i] == "value" {
 			break
 		}
-		optionName += " " + args[i]
+		optionName += " " + parts[i]
 	}
 
 	i++
-	if i >= len(args) {
+	if i >= len(parts) {
 		return "", ""
 	}
 
-	optionValue := strings.Join(args[i:], " ")
+	optionValue := strings.Join(parts[i:], " ")
 
 	if optionValue == "<empty>" {
 		optionValue = ""
@@ -334,6 +343,80 @@ func (e *Engine) handleShow() {
 	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Lichess_Rating_Max", e.LichessRatingMax))
 	sb.WriteString(fmt.Sprintf("info string option name %s value %s\n", "Lichess_Since", e.LichessSince.String()))
 	sb.WriteString(fmt.Sprintf("info string option name %s value %s\n", "Lichess_Until", e.LichessUntil.String()))
+
+	uciWriteLine(sb.String())
+}
+
+func (e *Engine) handlePosition(line string) {
+	// position startpos
+	// position startpos moves <moves list>
+	// position fen <fen>
+	// position fen <fen> moves <moves list>
+
+	parts := strings.Split(line, " ")
+	if len(parts) < 2 {
+		return
+	}
+
+	var (
+		fen   string
+		moves []string
+	)
+
+	i := 2
+	if parts[1] == "startpos" {
+		fen = lichess.StartPos
+	} else if parts[1] == "fen" {
+		for ; i < len(parts); i++ {
+			if parts[i] == "moves" {
+				break
+			}
+		}
+		j := i
+		if j > 8 {
+			j = 8
+		}
+
+		fen = strings.Join(parts[2:j], " ")
+	} else {
+		return
+	}
+
+	if i < len(parts)-1 && parts[i] == "moves" {
+		moves = parts[i+1:]
+	}
+
+	e.positionMtx.Lock()
+	e.fen = fen
+	e.moves = moves
+	e.positionMtx.Unlock()
+
+	e.handleD()
+}
+
+func (e *Engine) readPosition() (string, []string) {
+	var fen string
+	var moves []string
+
+	e.positionMtx.RLock()
+	fen = e.fen
+	moves = make([]string, len(e.moves))
+	copy(moves, e.moves)
+	e.positionMtx.RUnlock()
+
+	return fen, moves
+}
+
+func (e *Engine) handleD() {
+	fen, moves := e.readPosition()
+
+	var sb strings.Builder
+	sb.WriteString("info string position fen ")
+	sb.WriteString(fen)
+	if len(moves) > 0 {
+		sb.WriteString(" moves ")
+		sb.WriteString(strings.Join(moves, " "))
+	}
 
 	uciWriteLine(sb.String())
 }
