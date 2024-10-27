@@ -28,25 +28,27 @@ func (b Board) IsBlocked(sq1, sq2 int) bool {
 }
 
 func (b Board) Attack(color int, sq int) bool {
-	if b.Pieces[color][Pawn]&PawnDefends[color][sq] != 0 {
+	p := b.Pieces[color]
+
+	if p[Pawn]&PawnDefends[color][sq] != 0 {
 		return true
 	}
-	if b.Pieces[color][Knight]&PieceMoves[Knight][sq] != 0 {
+	if p[Knight]&PieceMoves[Knight][sq] != 0 {
 		return true
 	}
-	if b.Pieces[color][King]&PieceMoves[King][sq] != 0 {
+	if p[King]&PieceMoves[King][sq] != 0 {
 		return true
 	}
 
-	b1 := PieceMoves[Rook][sq] & (b.Pieces[color][Rook] | b.Pieces[color][Queen])
-	b1 |= PieceMoves[Bishop][sq] & (b.Pieces[color][Bishop] | b.Pieces[color][Queen])
+	b1 := PieceMoves[Rook][sq] & (p[Rook] | p[Queen])
+	b1 |= PieceMoves[Bishop][sq] & (p[Bishop] | p[Queen])
 
 	for b1 != 0 {
-		sq2 := NextBit(b1)
+		sq2 := b1.NextBit()
 		if BitBetween[sq2][sq]&b.All == 0 {
 			return true
 		}
-		b1 &= ^(1 << sq2) // TODO: test if pre-calculating a `not_mask` is faster
+		b1 &= b1 - 1
 	}
 
 	return false

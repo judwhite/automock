@@ -56,3 +56,45 @@ func TestBits_String(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkBits_NextBit(b *testing.B) {
+	const najdorfFEN = "rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6"
+
+	bitBoard, err := ParseFEN(najdorfFEN)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bb := bitBoard.All
+
+		for bb != 0 {
+			sq := bb.NextBit()
+			_ = sq
+			bb &= bb - 1
+			//bb &= ^(1 << sq)
+		}
+	}
+}
+
+func BenchmarkBits_NextBitOld(b *testing.B) {
+	const najdorfFEN = "rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6"
+
+	bitBoard, err := ParseFEN(najdorfFEN)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bb := bitBoard.All
+
+		for bb != 0 {
+			sq := bb.NextBitOld()
+			_ = sq
+			bb &= bb - 1
+			//bb &= ^(1 << sq)
+		}
+	}
+}
