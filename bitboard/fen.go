@@ -88,5 +88,15 @@ func ParseFEN(fen string) (Board, error) {
 
 	b.All = b.Units[Black] | b.Units[White]
 
+	activeColor := fenParts[1]
+	switch activeColor {
+	case "w":
+		b.ActiveColor = White
+	case "b":
+		b.ActiveColor = Black
+	default:
+		return Board{}, xerrors.Errorf("invalid FEN '%s', active color expected to be 'w' or 'b', got '%s'", fen, activeColor)
+	}
+
 	return b, nil
 }

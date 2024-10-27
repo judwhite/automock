@@ -280,7 +280,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KingMoves[A1],
+			input: PieceMoves[King][A1],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -291,7 +291,7 @@ func TestBits_String(t *testing.T) {
 				"0 1 0 0 0 0 0 0\n",
 		},
 		{
-			input: KingMoves[H1],
+			input: PieceMoves[King][H1],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -302,7 +302,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 1 0\n",
 		},
 		{
-			input: KingMoves[A8],
+			input: PieceMoves[King][A8],
 			want: "0 1 0 0 0 0 0 0\n" +
 				"1 1 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -313,7 +313,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KingMoves[H8],
+			input: PieceMoves[King][H8],
 			want: "0 0 0 0 0 0 1 0\n" +
 				"0 0 0 0 0 0 1 1\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -324,7 +324,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KingMoves[E1],
+			input: PieceMoves[King][E1],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -335,7 +335,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 1 0 1 0 0\n",
 		},
 		{
-			input: KingMoves[E8],
+			input: PieceMoves[King][E8],
 			want: "0 0 0 1 0 1 0 0\n" +
 				"0 0 0 1 1 1 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -346,7 +346,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KingMoves[A4],
+			input: PieceMoves[King][A4],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -357,7 +357,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KingMoves[H5],
+			input: PieceMoves[King][H5],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 1 1\n" +
@@ -368,7 +368,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KingMoves[E4],
+			input: PieceMoves[King][E4],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -467,7 +467,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 1\n",
 		},
 		{
-			input: KnightMoves[B1],
+			input: PieceMoves[Knight][B1],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -478,7 +478,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[G1],
+			input: PieceMoves[Knight][G1],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -489,7 +489,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[B8],
+			input: PieceMoves[Knight][B8],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 1 0 0 0 0\n" +
 				"1 0 1 0 0 0 0 0\n" +
@@ -500,7 +500,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[G8],
+			input: PieceMoves[Knight][G8],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 1 0 0 0\n" +
 				"0 0 0 0 0 1 0 1\n" +
@@ -511,7 +511,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[H4],
+			input: PieceMoves[Knight][H4],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 1 0\n" +
@@ -522,7 +522,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[A1],
+			input: PieceMoves[Knight][A1],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -533,7 +533,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[A8],
+			input: PieceMoves[Knight][A8],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 1 0 0 0 0 0\n" +
 				"0 1 0 0 0 0 0 0\n" +
@@ -544,7 +544,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[H1],
+			input: PieceMoves[Knight][H1],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n" +
@@ -555,7 +555,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[H8],
+			input: PieceMoves[Knight][H8],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 1 0 0\n" +
 				"0 0 0 0 0 0 1 0\n" +
@@ -566,7 +566,7 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n",
 		},
 		{
-			input: KnightMoves[F5],
+			input: PieceMoves[Knight][F5],
 			want: "0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 1 0 1 0\n" +
 				"0 0 0 1 0 0 0 1\n" +
@@ -576,6 +576,371 @@ func TestBits_String(t *testing.T) {
 				"0 0 0 0 0 0 0 0\n" +
 				"0 0 0 0 0 0 0 0\n",
 		},
+		{
+			input: PawnCaptures[White][A2],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 1 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnCaptures[White][B2],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"1 0 1 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnCaptures[White][G2],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 1 0 1\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnCaptures[White][H2],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 1 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnCaptures[White][A7],
+			want: "0 1 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnCaptures[White][A1],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnCaptures[Black][A7],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 1 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnCaptures[Black][B7],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"1 0 1 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnCaptures[Black][H7],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 1 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnMoves[White][A2],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnMoves[White][H2],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 1\n" +
+				"0 0 0 0 0 0 0 1\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnMoves[White][D5],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 1 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnMoves[White][E7],
+			want: "0 0 0 0 1 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnMoves[Black][A7],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnMoves[Black][E7],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 1 0 0 0\n" +
+				"0 0 0 0 1 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnMoves[Black][D2],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 1 0 0 0 0\n",
+		},
+		{
+			input: PawnMoves[Black][E6],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 1 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PieceMoves[Bishop][A1],
+			want: "0 0 0 0 0 0 0 1\n" +
+				"0 0 0 0 0 0 1 0\n" +
+				"0 0 0 0 0 1 0 0\n" +
+				"0 0 0 0 1 0 0 0\n" +
+				"0 0 0 1 0 0 0 0\n" +
+				"0 0 1 0 0 0 0 0\n" +
+				"0 1 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PieceMoves[Bishop][D4],
+			want: "0 0 0 0 0 0 0 1\n" +
+				"1 0 0 0 0 0 1 0\n" +
+				"0 1 0 0 0 1 0 0\n" +
+				"0 0 1 0 1 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 1 0 1 0 0 0\n" +
+				"0 1 0 0 0 1 0 0\n" +
+				"1 0 0 0 0 0 1 0\n",
+		},
+		{
+			input: PieceMoves[Rook][A1],
+			want: "1 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"1 0 0 0 0 0 0 0\n" +
+				"0 1 1 1 1 1 1 1\n",
+		},
+		{
+			input: PieceMoves[Rook][D4],
+			want: "0 0 0 1 0 0 0 0\n" +
+				"0 0 0 1 0 0 0 0\n" +
+				"0 0 0 1 0 0 0 0\n" +
+				"0 0 0 1 0 0 0 0\n" +
+				"1 1 1 0 1 1 1 1\n" +
+				"0 0 0 1 0 0 0 0\n" +
+				"0 0 0 1 0 0 0 0\n" +
+				"0 0 0 1 0 0 0 0\n",
+		},
+		{
+			input: PieceMoves[Queen][H1],
+			want: "1 0 0 0 0 0 0 1\n" +
+				"0 1 0 0 0 0 0 1\n" +
+				"0 0 1 0 0 0 0 1\n" +
+				"0 0 0 1 0 0 0 1\n" +
+				"0 0 0 0 1 0 0 1\n" +
+				"0 0 0 0 0 1 0 1\n" +
+				"0 0 0 0 0 0 1 1\n" +
+				"1 1 1 1 1 1 1 0\n",
+		},
+		{
+			input: PieceMoves[Queen][E4],
+			want: "1 0 0 0 1 0 0 0\n" +
+				"0 1 0 0 1 0 0 1\n" +
+				"0 0 1 0 1 0 1 0\n" +
+				"0 0 0 1 1 1 0 0\n" +
+				"1 1 1 1 0 1 1 1\n" +
+				"0 0 0 1 1 1 0 0\n" +
+				"0 0 1 0 1 0 1 0\n" +
+				"0 1 0 0 1 0 0 1\n",
+		},
+		{
+			input: PawnDefends[White][B3],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"1 0 1 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnDefends[White][A3],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 1 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnDefends[White][G3],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 1 0 1\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnDefends[White][H3],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 1 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnDefends[White][A8],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 1 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnDefends[White][A1],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnDefends[Black][A7],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnDefends[Black][B6],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"1 0 1 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+		{
+			input: PawnDefends[Black][H5],
+			want: "0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 1 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n" +
+				"0 0 0 0 0 0 0 0\n",
+		},
+
+		//{
+		//	input: PieceMoves[][],
+		//	want: "0 0 0 0 0 0 0 0\n" +
+		//		"0 0 0 0 0 0 0 0\n" +
+		//		"0 0 0 0 0 0 0 0\n" +
+		//		"0 0 0 0 0 0 0 0\n" +
+		//		"0 0 0 0 0 0 0 0\n" +
+		//		"0 0 0 0 0 0 0 0\n" +
+		//		"0 0 0 0 0 0 0 0\n" +
+		//		"0 0 0 0 0 0 0 0\n",
+		//},
+
 	}
 
 	for _, c := range cases {

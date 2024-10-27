@@ -1,16 +1,46 @@
 package bitboard
 
-import "fmt"
+import (
+	"fmt"
+)
+
+func init() {
+	genSquareNames()
+	genBitBetween()
+	genBitAfter()
+
+	genKingMoves()
+	genKnightMoves()
+	genPawnCaptures()
+	genPawnMoves()
+
+	genPawnWeaknesses()
+	genSliderMoves()
+
+	//b, err := ParseFEN(StartPos)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//bb := b.All
+	//fmt.Printf("%s\n\n---\n\n", bb.String())
+	//nextBit := NextBit(bb)
+	//fmt.Printf("next bit: %d\n", nextBit)
+}
 
 var (
 	BitBetween [64][64]Bits
 	BitAfter   [64][64]Bits
 
-	KingMoves   [64]Bits
-	KnightMoves [64]Bits
-	// TODO: PawnMoves
-	// TODO: PawnCaptures
-	// TODO: KnightMoves
+	PawnCaptures [2][64]Bits
+	PawnDefends  [2][64]Bits
+	PawnMoves    [2][64]Bits
+
+	PieceMoves [6][64]Bits
+
+	PassedPawns   [2][64]Bits
+	IsolatedPawns [64]Bits
+	PawnPath      [2][64]Bits
 )
 
 const (
@@ -107,7 +137,7 @@ const (
 
 var squareNames [64]string
 
-var ranks = []uint64{
+var ranks = []Bits{
 	0xFF000000_00000000,
 	0x00FF0000_00000000,
 	0x0000FF00_00000000,
@@ -118,7 +148,7 @@ var ranks = []uint64{
 	0x00000000_000000FF,
 }
 
-var files = []uint64{
+var files = []Bits{
 	0x80808080_80808080,
 	0x40404040_40404040,
 	0x20202020_20202020,
@@ -129,7 +159,7 @@ var files = []uint64{
 	0x01010101_01010101,
 }
 
-var diagonals = []uint64{
+var diagonals = []Bits{
 	0x4080000000000000,
 	0x2040800000000000,
 	0x1020408000000000,
@@ -158,14 +188,6 @@ var diagonals = []uint64{
 	0x0000000000008040,
 }
 
-func init() {
-	genSquareNames()
-	genBitBetween()
-	genBitAfter()
-	genKingMoves()
-	genKnightMoves()
-}
-
 func genSquareNames() {
 	for file := 'a'; file <= 'h'; file++ {
 		for rank := 1; rank <= 8; rank++ {
@@ -176,14 +198,14 @@ func genSquareNames() {
 }
 
 func genBitBetween() {
-	lines := make([]uint64, 0, len(ranks)+len(files)+len(diagonals))
+	lines := make([]Bits, 0, len(ranks)+len(files)+len(diagonals))
 	lines = append(lines, ranks...)
 	lines = append(lines, files...)
 	lines = append(lines, diagonals...)
 
 	for i := 0; i < 64; i++ {
 		for j := i + 1; j < 64; j++ {
-			b1, b2 := uint64(1<<i), uint64(1<<j)
+			b1, b2 := Bits(1<<i), Bits(1<<j)
 
 			var b Bits
 
@@ -209,14 +231,14 @@ func genBitBetween() {
 }
 
 func genBitAfter() {
-	lines := make([]uint64, 0, len(ranks)+len(files)+len(diagonals))
+	lines := make([]Bits, 0, len(ranks)+len(files)+len(diagonals))
 	lines = append(lines, ranks...)
 	lines = append(lines, files...)
 	lines = append(lines, diagonals...)
 
 	for i := 0; i < 64; i++ {
 		for j := i + 1; j < 64; j++ {
-			sq1, sq2 := uint64(1<<i), uint64(1<<j)
+			sq1, sq2 := Bits(1<<i), Bits(1<<j)
 
 			var b1, b2 Bits
 
@@ -276,7 +298,7 @@ func genKingMoves() {
 
 			b |= 1 << (rank*8 + file + 1) // w
 		}
-		KingMoves[i] = b
+		PieceMoves[King][i] = b
 	}
 }
 
@@ -311,6 +333,177 @@ func genKnightMoves() {
 			b |= 1 << (newRank*8 + newFile)
 		}
 
-		KnightMoves[i] = b
+		PieceMoves[Knight][i] = b
+	}
+}
+
+func genPawnCaptures() {
+	for rank := 1; rank <= 6; rank++ {
+		for file := 0; file <= 7; file++ {
+			pos := rank*8 + (7 - file)
+			posBits := Bits(1 << pos)
+
+			if file > 0 {
+				newFile := file - 1
+
+				whiteSq := (rank+1)*8 + (7 - newFile)
+				blackSq := (rank-1)*8 + (7 - newFile)
+
+				PawnCaptures[White][pos] |= 1 << whiteSq
+				PawnCaptures[Black][pos] |= 1 << blackSq
+
+				PawnDefends[White][whiteSq] |= posBits
+				PawnDefends[Black][blackSq] |= posBits
+			}
+			if file < 7 {
+				newFile := file + 1
+
+				whiteSq := (rank+1)*8 + (7 - newFile)
+				blackSq := (rank-1)*8 + (7 - newFile)
+
+				PawnCaptures[White][pos] |= 1 << whiteSq
+				PawnCaptures[Black][pos] |= 1 << blackSq
+
+				PawnDefends[White][whiteSq] |= posBits
+				PawnDefends[Black][blackSq] |= posBits
+			}
+		}
+	}
+}
+
+func genPawnMoves() {
+	for rank := 1; rank <= 6; rank++ {
+		for file := 0; file <= 7; file++ {
+			pos := rank*8 + (7 - file)
+
+			var white, black Bits
+
+			white |= Bits(1 << (pos + 8))
+			black |= Bits(1 << (pos - 8))
+
+			if rank == 1 {
+				white |= Bits(1 << (pos + 16))
+			} else if rank == 6 {
+				black |= Bits(1 << (pos - 16))
+			}
+
+			PawnMoves[White][pos] = white
+			PawnMoves[Black][pos] = black
+		}
+	}
+}
+
+func genPawnWeaknesses() {
+	for x := 0; x < 64; x++ {
+		colX := x % 8
+		rowX := x / 8
+		for y := 0; y < 64; y++ {
+			colY := y % 8
+			rowY := y / 8
+
+			if abs(colX-colY) < 2 {
+				if rowX < rowY && rowY < 7 {
+					PassedPawns[White][x] |= 1 << y
+				}
+				if rowX > rowY && rowY > 0 {
+					PassedPawns[Black][x] |= 1 << y
+				}
+			}
+
+			if abs(colX-colY) == 1 {
+				IsolatedPawns[x] |= 1 << y
+			}
+
+			if colX == colY {
+				if rowX < rowY {
+					PawnPath[White][x] |= 1 << y
+				}
+				if rowX > rowY {
+					PawnPath[Black][x] |= 1 << y
+				}
+			}
+		}
+	}
+
+	//fmt.Fprintf(os.Stderr, "%s\n\n", PawnPath[White][E4].String())
+	//fmt.Fprintf(os.Stderr, "%s\n\n", PawnPath[Black][D7].String())
+
+	// PassedPawns[White][E2]:
+	// 0 0 0 0 0 0 0 0
+	// 0 0 0 1 1 1 0 0
+	// 0 0 0 1 1 1 0 0
+	// 0 0 0 1 1 1 0 0
+	// 0 0 0 1 1 1 0 0
+	// 0 0 0 1 1 1 0 0
+	// 0 0 0 0 0 0 0 0
+	// 0 0 0 0 0 0 0 0
+
+	// IsolatedPawns[D3]
+	// 0 0 1 0 1 0 0 0
+	// 0 0 1 0 1 0 0 0
+	// 0 0 1 0 1 0 0 0
+	// 0 0 1 0 1 0 0 0
+	// 0 0 1 0 1 0 0 0
+	// 0 0 1 0 1 0 0 0
+	// 0 0 1 0 1 0 0 0
+	// 0 0 1 0 1 0 0 0
+
+	// PawnPath[White][E4]
+	// 0 0 0 0 1 0 0 0
+	// 0 0 0 0 1 0 0 0
+	// 0 0 0 0 1 0 0 0
+	// 0 0 0 0 1 0 0 0
+	// 0 0 0 0 0 0 0 0
+	// 0 0 0 0 0 0 0 0
+	// 0 0 0 0 0 0 0 0
+	// 0 0 0 0 0 0 0 0
+}
+
+// lsb_64_table is the lookup table for LSB index calculation.
+var lsb64Table = [64]int{
+	63, 30, 3, 32, 59, 14, 11, 33,
+	60, 24, 50, 9, 55, 19, 21, 34,
+	61, 29, 2, 53, 51, 23, 41, 18,
+	56, 28, 1, 43, 46, 27, 0, 35,
+	62, 31, 58, 4, 5, 49, 54, 6,
+	15, 52, 12, 40, 7, 42, 45, 16,
+	25, 57, 48, 13, 10, 39, 8, 44,
+	20, 47, 38, 22, 17, 37, 36, 26,
+}
+
+// NextBit computes the index of the least significant bit (LSB) in the bitboard `bb`.
+func NextBit(b Bits) int {
+	b ^= b - 1
+	folded := uint32(b ^ (b >> 32)) // Fold the upper 32 bits into the lower 32 bits
+	return lsb64Table[(folded*0x78291ACF)>>26]
+}
+
+func genSliderMoves() {
+	var rookLines []Bits
+	rookLines = append(rookLines, files...)
+	rookLines = append(rookLines, ranks...)
+
+	for i := 0; i < 64; i++ {
+		a := Bits(1 << i)
+		for j := 0; j < 64; j++ {
+			if i == j {
+				continue
+			}
+			b := Bits(1 << j)
+
+			for _, diagonal := range diagonals {
+				if diagonal&a == a && diagonal&b == b {
+					PieceMoves[Bishop][i] |= b
+					PieceMoves[Queen][i] |= b
+				}
+			}
+
+			for _, rookLine := range rookLines {
+				if rookLine&a == a && rookLine&b == b {
+					PieceMoves[Rook][i] |= b
+					PieceMoves[Queen][i] |= b
+				}
+			}
+		}
 	}
 }
