@@ -20,6 +20,7 @@ type Board struct {
 	All    Bits
 
 	ActiveColor int
+	Castle      int
 }
 
 func (b Board) IsBlocked(sq1, sq2 int) bool {

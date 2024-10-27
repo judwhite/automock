@@ -3,19 +3,24 @@ package bitboard
 import "testing"
 
 func TestParseFEN(t *testing.T) {
-	type fenTest struct {
+	type boardTest struct {
 		name string
 		bb   func(Board) Bits
 		want string
 	}
 
 	cases := []struct {
-		fen   string
-		tests []fenTest
+		fen             string
+		wantActiveColor int
+		wantCastle      int
+
+		boardTests []boardTest
 	}{
 		{
-			fen: StartPos,
-			tests: []fenTest{
+			fen:             StartPos,
+			wantActiveColor: White,
+			wantCastle:      0b1111,
+			boardTests: []boardTest{
 				{
 					name: "black pawns",
 					bb:   func(b Board) Bits { return b.Pieces[Black][Pawn] },
@@ -223,11 +228,19 @@ func TestParseFEN(t *testing.T) {
 				return
 			}
 
-			for _, c := range c.tests {
-				t.Run(c.name, func(t *testing.T) {
-					got := c.bb(b).String()
-					if c.want != got {
-						t.Errorf("want:\n%s\ngot:\n%s", got, c.want)
+			if c.wantActiveColor != b.ActiveColor {
+				t.Errorf("ActiveColor, want: %d, got: %d", c.wantActiveColor, b.ActiveColor)
+			}
+
+			if c.wantCastle != b.Castle {
+				t.Errorf("Castle, want: %04b, got: %04b", c.wantCastle, b.Castle)
+			}
+
+			for _, bt := range c.boardTests {
+				t.Run(bt.name, func(t *testing.T) {
+					got := bt.bb(b).String()
+					if bt.want != got {
+						t.Errorf("want:\n%s\ngot:\n%s", got, bt.want)
 					}
 				})
 			}

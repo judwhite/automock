@@ -88,6 +88,8 @@ func ParseFEN(fen string) (Board, error) {
 
 	b.All = b.Units[Black] | b.Units[White]
 
+	// active color
+
 	activeColor := fenParts[1]
 	switch activeColor {
 	case "w":
@@ -96,6 +98,26 @@ func ParseFEN(fen string) (Board, error) {
 		b.ActiveColor = Black
 	default:
 		return Board{}, xerrors.Errorf("invalid FEN '%s', active color expected to be 'w' or 'b', got '%s'", fen, activeColor)
+	}
+
+	// castling availability
+
+	castling := fenParts[2]
+	for _, c := range castling {
+		switch c {
+		case 'K':
+			b.Castle |= 1
+		case 'Q':
+			b.Castle |= 2
+		case 'k':
+			b.Castle |= 4
+		case 'q':
+			b.Castle |= 8
+		case '-':
+			// no-op
+		default:
+			return Board{}, xerrors.Errorf("invalid FEN '%s', castling availability '%s' has unexpected character '%c'", fen, castling, c)
+		}
 	}
 
 	return b, nil
