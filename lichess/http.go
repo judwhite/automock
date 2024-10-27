@@ -2,14 +2,31 @@ package lichess
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
 
 	"golang.org/x/xerrors"
 )
 
-func httpGet(ctx context.Context, url string, query QueryStringer) ([]byte, error) {
-	queryString := query.QueryString()
+const cacheDir = "./cache"
+
+func httpGet(ctx context.Context, url string, query url.Values) ([]byte, error) {
+	queryKey := getQueryKey(url, query)
+	cachedResponse := getCachedResponse(queryKey)
+	if cachedResponse != nil {
+		return cachedResponse, nil
+	}
+
+	queryString := query.Encode()
 	if queryString != "" {
 		url += "?" + queryString
 	}
@@ -18,6 +35,7 @@ func httpGet(ctx context.Context, url string, query QueryStringer) ([]byte, erro
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create request: %w", err)
 	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", lichessAPIToken))
 
 	var c http.Client
 
@@ -36,5 +54,96 @@ func httpGet(ctx context.Context, url string, query QueryStringer) ([]byte, erro
 		return nil, xerrors.Errorf("unexpected status code: %s response body: %s", resp.Status, string(responseBody))
 	}
 
+	storeCachedResponse(queryKey, url, query.Encode(), responseBody)
+
 	return responseBody, nil
+}
+
+func getQueryKey(url string, query url.Values) string {
+	names := make([]string, 0, len(query))
+	for name := range query {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("url=%s", url))
+	for _, key := range names {
+		sb.WriteString(fmt.Sprintf("&%s=%s", key, query.Get(key)))
+	}
+
+	h := sha1.New()
+	h.Write([]byte(sb.String()))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+var (
+	cache        = make(map[string][]byte)
+	memCacheMtx  sync.RWMutex
+	fileCacheMtx sync.RWMutex
+)
+
+func getCachedResponse(queryKey string) []byte {
+	memCacheMtx.RLock()
+	cachedResponse, ok := cache[queryKey]
+	memCacheMtx.RUnlock()
+
+	if ok {
+		return cachedResponse
+	}
+
+	fs := queryKeyToFS(queryKey)
+
+	fileCacheMtx.RLock()
+	b, err := os.ReadFile(fs.Filename)
+	fileCacheMtx.RUnlock()
+	if err != nil {
+		return nil
+	}
+
+	memCacheMtx.Lock()
+	cache[queryKey] = b
+	memCacheMtx.Unlock()
+
+	return b
+}
+
+type queryKeyFileSystem struct {
+	Dir              string
+	Filename         string
+	MetadataFilename string
+}
+
+func queryKeyToFS(queryKey string) queryKeyFileSystem {
+	prefix := queryKey[:2]
+	dir := filepath.Join(cacheDir, prefix)
+
+	return queryKeyFileSystem{
+		Dir:              dir,
+		Filename:         filepath.Join(dir, queryKey[:8]+".json"),
+		MetadataFilename: filepath.Join(dir, queryKey[:8]+"-metadata.json"),
+	}
+}
+
+func storeCachedResponse(queryKey, url, query string, body []byte) {
+	memCacheMtx.Lock()
+	cache[queryKey] = body
+	memCacheMtx.Unlock()
+
+	fs := queryKeyToFS(queryKey)
+	metadataBody := []byte(fmt.Sprintf("url=%s\nquery=%s\nqueryKey=%s\n", url, query, queryKey))
+
+	fileCacheMtx.Lock()
+	defer fileCacheMtx.Unlock()
+
+	if err := os.MkdirAll(fs.Dir, 0755); err != nil {
+		return
+	}
+	if err := os.WriteFile(fs.Filename, body, 0644); err != nil {
+		return
+	}
+	if err := os.WriteFile(fs.MetadataFilename, metadataBody, 0644); err != nil {
+		return
+	}
 }

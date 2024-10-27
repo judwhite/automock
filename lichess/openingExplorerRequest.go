@@ -3,6 +3,8 @@ package lichess
 import (
 	"net/url"
 	"strconv"
+
+	"stockhuman/bitboard"
 )
 
 type OpeningExplorerRequest struct {
@@ -22,7 +24,7 @@ type OpeningExplorerRequest struct {
 func NewOpeningExplorerRequest() OpeningExplorerRequest {
 	return OpeningExplorerRequest{
 		Variant:     "standard",
-		FEN:         StartPos,
+		FEN:         bitboard.StartPos,
 		Play:        "",
 		Speeds:      ValidSpeeds,
 		Ratings:     ValidRatings,
@@ -52,7 +54,7 @@ func (r OpeningExplorerRequest) QueryString() url.Values {
 		values.Set("since", r.Since.String())
 	}
 	if !r.Until.IsZero() {
-		values.Set("until", r.Since.String())
+		values.Set("until", r.Until.String())
 	}
 
 	values.Set("moves", strconv.Itoa(r.Moves))
