@@ -2,7 +2,6 @@ package bitboard
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 )
 
@@ -28,8 +27,8 @@ func TestBoard_IsBlocked(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		name := fmt.Sprintf("%s__%s_%s",
-			strings.ReplaceAll(c.fen, "/", "_"),
+		name := fmt.Sprintf("%s %s %s",
+			c.fen,
 			squareNames[c.sq1],
 			squareNames[c.sq2])
 
