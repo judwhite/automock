@@ -1,6 +1,8 @@
 package bitboard
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestParseFEN(t *testing.T) {
 	type boardTest struct {
@@ -10,16 +12,23 @@ func TestParseFEN(t *testing.T) {
 	}
 
 	cases := []struct {
-		fen             string
-		wantActiveColor int
-		wantCastle      int
+		fen                string
+		wantActiveColor    Color
+		wantCastle         int
+		wantEPSquare       int
+		wantHalfMoveClock  int
+		wantFullMoveNumber int
 
 		boardTests []boardTest
 	}{
 		{
-			fen:             StartPos,
-			wantActiveColor: White,
-			wantCastle:      0b1111,
+			fen:                StartPos,
+			wantActiveColor:    White,
+			wantCastle:         0b1111,
+			wantEPSquare:       0,
+			wantHalfMoveClock:  0,
+			wantFullMoveNumber: 1,
+
 			boardTests: []boardTest{
 				{
 					name: "black pawns",
@@ -243,6 +252,34 @@ func TestParseFEN(t *testing.T) {
 						t.Errorf("want:\n%s\ngot:\n%s", got, bt.want)
 					}
 				})
+			}
+		})
+	}
+}
+
+func TestBoard_FEN(t *testing.T) {
+	cases := []struct {
+		fen string
+	}{
+		{StartPos},
+		{"r1bqkb1r/ppp2ppp/2n2n2/1B1pp3/4P3/P1N2N2/1PPP1PPP/R1BQK2R b KQkq - 1 5"},
+		{"r1bqkb1r/ppp2ppp/2n2n2/1B2N3/4p3/P1N5/1PPP1PPP/R1BQK2R b KQkq - 0 6"},
+		{"rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6"},
+		{"rnbqkb1r/ppp1pppp/5n2/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.fen, func(t *testing.T) {
+			b, err := ParseFEN(c.fen)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			got := b.FEN()
+
+			if c.fen != got {
+				t.Errorf("\nwant: %v\ngot:  %v", c.fen, got)
 			}
 		})
 	}

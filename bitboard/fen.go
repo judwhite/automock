@@ -1,6 +1,8 @@
 package bitboard
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 
 	"golang.org/x/xerrors"
@@ -13,10 +15,17 @@ func ParseFEN(fen string) (Board, error) {
 	// [3]: ep target square
 	// [4]: halfmove clock
 	// [5]: fullmove number
+
+	if fen == "startpos" {
+		return ParseFEN(StartPos)
+	}
+
 	fenParts := strings.Split(fen, " ")
 	if len(fenParts) != 4 && len(fenParts) != 6 {
 		return Board{}, xerrors.Errorf("invalid FEN '%s', execpted 4 or 6 parts, got %d", fen, len(fenParts))
 	}
+
+	// [0]: piece placement
 
 	ranks := strings.Split(fenParts[0], "/")
 	if len(ranks) != 8 {
@@ -88,7 +97,7 @@ func ParseFEN(fen string) (Board, error) {
 
 	b.All = b.Units[Black] | b.Units[White]
 
-	// active color
+	// [1]: active color
 
 	activeColor := fenParts[1]
 	switch activeColor {
@@ -100,7 +109,7 @@ func ParseFEN(fen string) (Board, error) {
 		return Board{}, xerrors.Errorf("invalid FEN '%s', active color expected to be 'w' or 'b', got '%s'", fen, activeColor)
 	}
 
-	// castling availability
+	// [2]: castling availability
 
 	castling := fenParts[2]
 	for _, c := range castling {
@@ -120,5 +129,153 @@ func ParseFEN(fen string) (Board, error) {
 		}
 	}
 
+	// [3]: ep target square
+	epTargetSquare := fenParts[3]
+	if epTargetSquare != "-" {
+		idx, ok := squareNameToIndex[epTargetSquare]
+		if !ok {
+			return Board{}, xerrors.Errorf("invalid FEN '%s', ep target square '%s' name invalid", fen, epTargetSquare)
+		}
+		b.EPTargetSquare = idx
+	}
+
+	// check for short version; early exit
+	if len(fenParts) == 4 {
+		b.HalfMoveClock = 0
+		b.FullMoveNumber = 1
+		return b, nil
+	}
+
+	// [4]: halfmove clock
+	hmc := fenParts[4]
+	halfMoveClock, err := strconv.Atoi(hmc)
+	if err != nil {
+		return Board{}, xerrors.Errorf("invalid fen '%s', halfmove clock '%s' is not an int", fen, hmc)
+	}
+	b.HalfMoveClock = halfMoveClock
+
+	// [5]: fullmove number
+	fmn := fenParts[5]
+	fullMoveNumber, err := strconv.Atoi(fmn)
+	if err != nil {
+		return Board{}, xerrors.Errorf("invalid fen '%s', fullmove number '%s' is not an int", fen, fmn)
+	}
+	b.FullMoveNumber = fullMoveNumber
+
 	return b, nil
+}
+
+func (b Board) FEN() string {
+	var sb strings.Builder
+
+	// [0]: piece placement
+	pos := Bits(1 << 63)
+	for row := 7; row >= 0; row-- {
+		blankCount := 0
+
+		for col := 7; col >= 0; col-- {
+			if b.All&pos != pos {
+				blankCount++
+				pos >>= 1
+				continue
+			}
+
+			if blankCount > 0 {
+				sb.WriteString(strconv.Itoa(blankCount))
+				blankCount = 0
+			}
+
+			if b.Units[White]&pos == pos {
+				pieces := b.Pieces[White]
+				if pieces[Pawn]&pos == pos {
+					sb.WriteByte('P')
+				} else if pieces[Knight]&pos == pos {
+					sb.WriteByte('N')
+				} else if pieces[Bishop]&pos == pos {
+					sb.WriteByte('B')
+				} else if pieces[Rook]&pos == pos {
+					sb.WriteByte('R')
+				} else if pieces[Queen]&pos == pos {
+					sb.WriteByte('Q')
+				} else if pieces[King]&pos == pos {
+					sb.WriteByte('K')
+				} else {
+					idx := row*8 + col
+					sq := squareNames[idx]
+					panic(fmt.Errorf("inconsistent internal board state. b.All&pos == pos && b.Units[White]&pos == pos, but couldn't find pos in piece types of b.Pieces[White]. idx: %d sq: %s pos: %016X", idx, sq, pos))
+				}
+			} else {
+				pieces := b.Pieces[Black]
+				if pieces[Pawn]&pos == pos {
+					sb.WriteByte('p')
+				} else if pieces[Knight]&pos == pos {
+					sb.WriteByte('n')
+				} else if pieces[Bishop]&pos == pos {
+					sb.WriteByte('b')
+				} else if pieces[Rook]&pos == pos {
+					sb.WriteByte('r')
+				} else if pieces[Queen]&pos == pos {
+					sb.WriteByte('q')
+				} else if pieces[King]&pos == pos {
+					sb.WriteByte('k')
+				} else {
+					idx := row*8 + col
+					sq := squareNames[idx]
+					panic(fmt.Errorf("inconsistent internal board state. b.All&pos == pos && b.Units[White]&pos != pos, but couldn't find pos in piece types of b.Pieces[Black]. idx: %d sq: %s pos: %016X", idx, sq, pos))
+				}
+			}
+
+			pos >>= 1
+		}
+
+		if blankCount > 0 {
+			sb.WriteString(strconv.Itoa(blankCount))
+		}
+
+		if row != 0 {
+			sb.WriteByte('/')
+		}
+	}
+
+	// [1]: active color
+	sb.WriteByte(' ')
+	sb.WriteString(b.ActiveColor.String())
+
+	// [2]: castling availability
+	sb.WriteByte(' ')
+	if b.Castle == 0 {
+		sb.WriteByte('-')
+	} else {
+		if b.Castle&1 == 1 {
+			sb.WriteByte('K')
+		}
+		if b.Castle&2 == 2 {
+			sb.WriteByte('Q')
+		}
+		if b.Castle&4 == 4 {
+			sb.WriteByte('k')
+		}
+		if b.Castle&8 == 8 {
+			sb.WriteByte('q')
+		}
+	}
+
+	// [3]: ep target square
+	sb.WriteByte(' ')
+	if b.EPTargetSquare == 0 {
+		sb.WriteByte('-')
+	} else {
+		sq := squareNames[b.EPTargetSquare]
+		sb.WriteString(sq)
+	}
+
+	// [4]: halfmove clock
+	sb.WriteByte(' ')
+	sb.WriteString(strconv.Itoa(b.HalfMoveClock))
+
+	// [5]: fullmove number
+	sb.WriteByte(' ')
+	sb.WriteString(strconv.Itoa(b.FullMoveNumber))
+
+	return sb.String()
 }

@@ -418,6 +418,16 @@ func (e *Engine) handleD() {
 	if len(moves) > 0 {
 		sb.WriteString(" moves ")
 		sb.WriteString(strings.Join(moves, " "))
+
+		bb, err := bitboard.ParseFEN(fen)
+		if err == nil {
+			bb, err = bb.Apply(moves)
+			if err == nil {
+				sb.WriteByte('\n')
+				sb.WriteString("info string position fen ")
+				sb.WriteString(bb.FEN())
+			}
+		}
 	}
 
 	uciWriteLine(sb.String())
@@ -438,7 +448,19 @@ func (e *Engine) handleGo(line string) {
 	_ = args // TODO: maybe handle the args?
 
 	startFEN, moves := e.readPosition()
-	fen := startFEN // TODO: add moves to startFEN using bitboard
+
+	bb, err := bitboard.ParseFEN(startFEN)
+	if err != nil {
+		uciWriteLine(fmt.Sprintf("info string %s", err.Error()))
+		panic(err)
+	}
+	bb, err = bb.Apply(moves)
+	if err != nil {
+		uciWriteLine(fmt.Sprintf("info string %s", err.Error()))
+		panic(err)
+	}
+
+	fen := bb.FEN()
 
 	var wg sync.WaitGroup
 	wg.Add(3)

@@ -13,6 +13,7 @@ func init() {
 	genKnightMoves()
 	genPawnCaptures()
 	genPawnMoves()
+	genEP()
 
 	genPawnWeaknesses()
 	genSliderMoves()
@@ -125,7 +126,64 @@ const (
 	H8 = FileH + Rank8
 )
 
-var squareNames [64]string
+const (
+	epFrom = 0x00FF0000_0000FF00
+	epTo   = 0x000000FF_FF000000
+
+	ks = 1
+	qs = 2
+
+	ksIdx = 0
+	qsIdx = 1
+)
+
+var (
+	squareNames       [64]string
+	squareNameToIndex map[string]int
+	squareNameToBits  map[string]Bits
+
+	epMask        [64]Bits
+	epTargetIndex [64]int
+
+	castleKingTo = [2][2]Bits{
+		// white
+		{
+			1 << G1, // kingside
+			1 << C1, // queenside
+		},
+		// black
+		{
+			1 << G8, //kingside
+			1 << C8, //queenside
+		},
+	}
+
+	castleRookTo = [2][2]Bits{
+		// white
+		{
+			1 << F1, // kingside
+			1 << D1, // queenside
+		},
+		// black
+		{
+			1 << F8, //kingside
+			1 << D8, //queenside
+		},
+	}
+
+	castleRookFrom = [2][2]Bits{
+		// white
+		{
+			1 << H1, // kingside
+			1 << A1, // queenside
+		},
+		// black
+		{
+			1 << H8, //kingside
+			1 << A8, //queenside
+		},
+	}
+)
 
 var ranks = []Bits{
 	0xFF000000_00000000,
@@ -179,10 +237,17 @@ var diagonals = []Bits{
 }
 
 func genSquareNames() {
+	squareNameToIndex = make(map[string]int, 64)
+	squareNameToBits = make(map[string]Bits, 64)
+
 	for file := 'a'; file <= 'h'; file++ {
 		for rank := 1; rank <= 8; rank++ {
 			pos := (rank-1)*8 + 7 - int(file-'a')
-			squareNames[pos] = fmt.Sprintf("%c%d", file, rank)
+			name := fmt.Sprintf("%c%d", file, rank)
+
+			squareNames[pos] = name
+			squareNameToIndex[name] = pos
+			squareNameToBits[name] = 1 << pos
 		}
 	}
 }
@@ -476,5 +541,32 @@ func genSliderMoves() {
 				}
 			}
 		}
+	}
+}
+
+func genEP() {
+	epMask[A4] = 1 << B4
+	epMask[B4] = 1<<A4 | 1<<C4
+	epMask[C4] = 1<<B4 | 1<<D4
+	epMask[D4] = 1<<C4 | 1<<E4
+	epMask[E4] = 1<<D4 | 1<<F4
+	epMask[F4] = 1<<E4 | 1<<G4
+	epMask[G4] = 1<<F4 | 1<<H4
+	epMask[H4] = 1 << G4
+
+	epMask[A5] = 1 << B5
+	epMask[B5] = 1<<A5 | 1<<C5
+	epMask[C5] = 1<<B5 | 1<<D5
+	epMask[D5] = 1<<C5 | 1<<E5
+	epMask[E5] = 1<<D5 | 1<<F5
+	epMask[F5] = 1<<E5 | 1<<G5
+	epMask[G5] = 1<<F5 | 1<<H5
+	epMask[H5] = 1 << G5
+
+	for i := H4; i <= A4; i++ {
+		epTargetIndex[i] = i - 8
+	}
+	for i := H5; i <= A5; i++ {
+		epTargetIndex[i] = i + 8
 	}
 }

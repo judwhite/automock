@@ -27,7 +27,7 @@ func (r OpeningExplorerRequest) QueryString() url.Values {
 	if r.Variant == "" {
 		r.Variant = "standard"
 	}
-	if r.FEN == "" {
+	if r.FEN == "" || r.FEN == "startpos" {
 		r.FEN = bitboard.StartPos
 	}
 	if r.Moves == 0 {
