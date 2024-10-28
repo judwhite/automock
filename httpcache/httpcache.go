@@ -1,4 +1,4 @@
-package lichess
+package httpcache
 
 import (
 	"context"
@@ -19,7 +19,13 @@ import (
 
 const cacheDir = "./cache"
 
-func httpGet(ctx context.Context, url string, query url.Values) ([]byte, error) {
+var (
+	cache        = make(map[string][]byte)
+	memCacheMtx  sync.RWMutex
+	fileCacheMtx sync.RWMutex
+)
+
+func Get(ctx context.Context, url string, query url.Values, header http.Header) ([]byte, error) {
 	queryKey := getQueryKey(url, query)
 	cachedResponse := getCachedResponse(queryKey)
 	if cachedResponse != nil {
@@ -35,7 +41,10 @@ func httpGet(ctx context.Context, url string, query url.Values) ([]byte, error) 
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", lichessAPIToken))
+
+	for k, v := range header {
+		req.Header.Set(k, v[0])
+	}
 
 	var c http.Client
 
@@ -77,12 +86,6 @@ func getQueryKey(url string, query url.Values) string {
 	h.Write([]byte(sb.String()))
 	return hex.EncodeToString(h.Sum(nil))
 }
-
-var (
-	cache        = make(map[string][]byte)
-	memCacheMtx  sync.RWMutex
-	fileCacheMtx sync.RWMutex
-)
 
 func getCachedResponse(queryKey string) []byte {
 	memCacheMtx.RLock()

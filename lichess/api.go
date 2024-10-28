@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 
 	"golang.org/x/xerrors"
+
+	"stockhuman/httpcache"
 )
 
 func GetLichessGames(ctx context.Context, req OpeningExplorerRequest) (OpeningExplorerResponse, error) {
 	const endpointURL = "https://explorer.lichess.ovh/lichess"
 
-	b, err := httpGet(ctx, endpointURL, req.QueryString())
+	b, err := httpcache.Get(ctx, endpointURL, req.QueryString(), authHeader)
 	if err != nil {
 		return OpeningExplorerResponse{}, xerrors.Errorf("%w", err)
 	}
