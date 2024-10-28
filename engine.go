@@ -512,7 +512,6 @@ func (e *Engine) handleGo(line string) {
 	wg.Wait()
 
 	uci := suggestedMove.UCI
-	depth, nodes := cloudEval.Depth, cloudEval.KNodes*1e3
 
 	var cp, mate int
 
@@ -540,11 +539,9 @@ func (e *Engine) handleGo(line string) {
 	}
 
 	ms := time.Since(start).Milliseconds()
-	nps := int(float64(nodes) / (float64(ms) / 1000.0))
-
-	msg := fmt.Sprintf("info depth %d time %d nodes %d score %s nps %d tbhits 0 pv %s\n"+
+	msg := fmt.Sprintf("info depth %d time %d score %s pv %s\n"+
 		"bestmove %s\n",
-		depth, ms, nodes, score, nps, uci,
+		18, ms, score, uci,
 		uci,
 	)
 	uciWriteLine(msg)
