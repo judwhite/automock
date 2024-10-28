@@ -43,10 +43,10 @@ func (b Board) IsBlocked(sq1, sq2 int) bool {
 	return b.All&BitBetween[sq1][sq2] != 0
 }
 
-func (b Board) Attack(color int, sq int) bool {
-	p := b.Pieces[color]
+func (b Board) Attack(s Color, sq int) bool {
+	p := b.Pieces[s]
 
-	if p[Pawn]&PawnDefends[color][sq] != 0 {
+	if p[Pawn]&PawnDefends[s][sq] != 0 {
 		return true
 	}
 	if p[Knight]&PieceMoves[Knight][sq] != 0 {
@@ -61,38 +61,214 @@ func (b Board) Attack(color int, sq int) bool {
 
 	for b1 != 0 {
 		sq2 := b1.NextBit()
-		if BitBetween[sq2][sq]&b.All == 0 {
+		b1 &= b1 - 1
+
+		if BitBetween[sq][sq2]&b.All == 0 {
 			return true
 		}
-		b1 &= b1 - 1
+
 	}
 
 	return false
 }
 
-func (b Board) LegalMoves() {
-	pieces := []int{Knight, Bishop, Rook, Queen, King}
+func (b Board) LegalMoves() []string {
+	legalMoves := make([]string, 0, 30)
 
-	for i := 0; i < 64; i++ {
-		bit := Bits(1 << i)
+	s := b.ActiveColor
+	xs := 1 - s
 
-		if b.Units[b.ActiveColor]&bit == 0 {
-			continue
+	sUnits := b.Units[s]
+	xsUnits := b.Units[xs]
+
+	pieces := b.Pieces[s]
+	pawns := pieces[Pawn]
+	pawnCaptures := PawnCaptures[s]
+
+	for pawns != 0 {
+		sq1 := pawns.NextBit()
+		pawns &= pawns - 1
+
+		// forward moves
+		forwardMoves := PawnMoves[s][sq1]
+		for forwardMoves != 0 {
+			sq2 := forwardMoves.NextBit()
+			forwardMoves &= forwardMoves - 1
+
+			if b.IsBlocked(sq1, sq2) {
+				continue
+			}
+			sq2Pos := Bits(1 << sq2)
+			if b.All&sq2Pos == sq2Pos {
+				continue
+			}
+
+			name := squareNames[sq1] + squareNames[sq2]
+
+			// promotion squares
+			if sq2 >= H8 || sq2 <= A1 {
+				legalMoves = append(legalMoves,
+					name+"q",
+					name+"r",
+					name+"n",
+					name+"b",
+				)
+			} else {
+				legalMoves = append(legalMoves, name)
+			}
 		}
 
-		if b.Pieces[b.ActiveColor][Pawn]&bit == bit {
-			//TODO: check en passant target square
-			//PawnMoves[b.ActiveColor][i]
-			//PawnCaptures[b.ActiveColor][i]
-		}
+		// captures
+		captures := pawnCaptures[sq1]
+		for captures != 0 {
+			sq2 := captures.NextBit()
+			captures &= captures - 1
 
-		for _, piece := range pieces {
-			if b.Pieces[b.ActiveColor][piece]&bit == bit {
-				//TODO: knights will get special treatment
-				//PieceMoves[piece][i]
+			sq2Pos := Bits(1 << sq2)
+			if xsUnits&sq2Pos == sq2Pos {
+				name := squareNames[sq1] + squareNames[sq2]
+
+				// promotion squares
+				if sq2 >= H8 || sq2 <= A1 {
+					legalMoves = append(legalMoves,
+						name+"q",
+						name+"r",
+						name+"n",
+						name+"b",
+					)
+				} else {
+					legalMoves = append(legalMoves, name)
+				}
+			}
+
+			// en-passant
+			if b.EPTargetSquare != 0 && b.EPTargetSquare == sq2 {
+				legalMoves = append(legalMoves, squareNames[sq1]+squareNames[sq2])
 			}
 		}
 	}
+
+	knights := pieces[Knight]
+	for knights != 0 {
+		sq1 := knights.NextBit()
+		knights &= knights - 1
+
+		knightMoves := PieceMoves[Knight][sq1]
+		for knightMoves != 0 {
+			sq2 := knightMoves.NextBit()
+			knightMoves &= knightMoves - 1
+
+			sq2Pos := Bits(1 << sq2)
+			if sUnits&sq2Pos == sq2Pos {
+				continue
+			}
+
+			legalMoves = append(legalMoves, squareNames[sq1]+squareNames[sq2])
+		}
+	}
+
+	// bishop, rook, queen
+	for _, pieceType := range []int{Bishop, Rook, Queen} {
+		pcs := pieces[pieceType]
+		for pcs != 0 {
+			sq1 := pcs.NextBit()
+			pcs &= pcs - 1
+
+			pieceMoves := PieceMoves[pieceType][sq1]
+			for pieceMoves != 0 {
+				sq2 := pieceMoves.NextBit()
+				pieceMoves &= pieceMoves - 1
+
+				if b.IsBlocked(sq1, sq2) {
+					continue
+				}
+
+				sq2Pos := Bits(1 << sq2)
+				if sUnits&sq2Pos == sq2Pos {
+					continue
+				}
+
+				legalMoves = append(legalMoves, squareNames[sq1]+squareNames[sq2])
+			}
+		}
+	}
+
+	// king
+	king := pieces[King]
+	kingSquare := king.NextBit()
+
+	kingMoves := PieceMoves[King][kingSquare]
+	for kingMoves != 0 {
+		sq2 := kingMoves.NextBit()
+		kingMoves &= kingMoves - 1
+
+		sq2Pos := Bits(1 << sq2)
+		if sUnits&sq2Pos == sq2Pos {
+			continue
+		}
+
+		legalMoves = append(legalMoves, squareNames[kingSquare]+squareNames[sq2])
+	}
+
+	// castling
+
+	castle := (b.Castle >> (2 * s)) & 0b11
+	if castle != 0 {
+		inCheck := b.Attack(xs, kingSquare)
+		if !inCheck {
+			castleSides := make([]int, 2)
+
+			if castle&ks == ks {
+				castleSides = append(castleSides, ksIdx)
+			}
+			if castle&qs == qs {
+				castleSides = append(castleSides, qsIdx)
+			}
+
+			for _, castleSideIdx := range castleSides {
+				kingDestPos := castleKingTo[s][castleSideIdx]
+				kingDestSq := kingDestPos.NextBit()
+
+				canCastle := true
+				squares := BitBetween[kingSquare][kingDestSq] | kingDestPos
+				if squares&b.All != 0 {
+					continue
+				}
+
+				for squares != 0 {
+					sq2 := squares.NextBit()
+					squares &= squares - 1
+
+					if b.Attack(xs, sq2) {
+						canCastle = false
+						break
+					}
+				}
+				if canCastle {
+					legalMoves = append(legalMoves, squareNames[kingSquare]+squareNames[kingDestSq])
+				}
+			}
+		}
+	}
+
+	// remove moves that leave the king in check
+	for i := 0; i < len(legalMoves); i++ {
+		move := legalMoves[i]
+		b2, err := b.Apply([]string{move})
+		if err != nil {
+			panic(err)
+		}
+
+		newKingSquare := b2.Pieces[s][King].NextBit()
+
+		if b2.Attack(xs, newKingSquare) {
+			legalMoves = append(legalMoves[:i], legalMoves[i+1:]...)
+			i--
+			continue
+		}
+	}
+
+	return legalMoves
 }
 
 func (b Board) String() string {
