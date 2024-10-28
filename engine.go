@@ -48,6 +48,7 @@ func NewEngine() *Engine {
 	)
 
 	e := Engine{
+		fen: "startpos",
 		UCIOptions: []UCIOption{
 			{
 				Name:    "Hash",
