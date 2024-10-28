@@ -33,7 +33,7 @@ func main() {
 	//fen := "r1bqkb1r/ppp2ppp/2n2n2/1B2N3/4p3/P1N5/1PPP1PPP/R1BQK2R b KQkq - 0 6" // Gunsberg
 	//fen := "rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6" // Najdorf
 
-	uciWriteLine(fmt.Sprintf("%s v%s", EngineName, Version))
+	uciWriteLine(fmt.Sprintf("%s %s", EngineName, Version))
 	uciLoop()
 }
 

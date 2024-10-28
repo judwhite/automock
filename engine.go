@@ -175,7 +175,7 @@ func (e *Engine) ParseInput(line string) {
 
 func (e *Engine) handleUCI() {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("id name %s v%s\n", EngineName, Version))
+	sb.WriteString(fmt.Sprintf("id name %s %s\n", EngineName, Version))
 	for _, uciOption := range e.UCIOptions {
 		sb.WriteString(uciOption.String())
 		sb.WriteByte('\n')
