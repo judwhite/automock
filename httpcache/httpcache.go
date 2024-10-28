@@ -43,7 +43,7 @@ func Get(ctx context.Context, skipCache bool, url string, query url.Values, head
 		url += "?" + queryString
 	}
 
-	utils.Log(fmt.Sprintf("... calling GET %s", url))
+	utils.Log(fmt.Sprintf("HTTP Request: GET %s", url))
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -67,7 +67,7 @@ func Get(ctx context.Context, skipCache bool, url string, query url.Values, head
 		return nil, false, xerrors.Errorf("GET %s, error reading body: %w", url, err)
 	}
 
-	utils.Log(fmt.Sprintf("... GET %s returned HTTP %s %s bytes", url, resp.Status, commas.Int(len(responseBody))))
+	utils.Log(fmt.Sprintf("HTTP Response: GET %s returned HTTP %s %s bytes", url, resp.Status, commas.Int(len(responseBody))))
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, false, xerrors.Errorf("unexpected status code: %s response body: %s", resp.Status, string(responseBody))

@@ -174,7 +174,7 @@ func (e *Engine) ParseInput(line string) {
 	case "d":
 		e.handleD()
 	case "quit":
-		os.Exit(1)
+		e.handleQuit()
 	default:
 		if command != "" {
 			uciWriteLine(fmt.Sprintf("info string unknown command '%s'", command))
@@ -463,6 +463,9 @@ func (e *Engine) handleGo(line string) {
 
 	defer func() {
 		atomic.StoreInt64(&e.goRunning, 0)
+		e.goMtx.Lock()
+		e.cancelGo = nil
+		e.goMtx.Unlock()
 	}()
 
 	start := time.Now()
@@ -742,4 +745,17 @@ func (e *Engine) handleStop() {
 		e.cancelGo = nil
 	}
 	e.goMtx.Unlock()
+}
+
+func (e *Engine) handleQuit() {
+	utils.Log("shutting down...")
+
+	start := time.Now()
+	e.handleStop()
+	for atomic.LoadInt64(&e.goRunning) == 1 && time.Since(start) < 1500*time.Millisecond {
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	utils.Log("goodbye.")
+	os.Exit(0)
 }
