@@ -13,6 +13,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"stockhuman/bitboard"
+	"stockhuman/chessdb"
 	"stockhuman/lichess"
 )
 
@@ -174,8 +175,7 @@ func (e *Engine) ParseInput(line string) {
 
 func (e *Engine) handleUCI() {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("id name %s %s\n", EngineName, Version))
-	sb.WriteString(fmt.Sprintf("id author %s\n", Author))
+	sb.WriteString(fmt.Sprintf("id name %s v%s\n", EngineName, Version))
 	for _, uciOption := range e.UCIOptions {
 		sb.WriteString(uciOption.String())
 		sb.WriteByte('\n')
@@ -394,8 +394,6 @@ func (e *Engine) handlePosition(line string) {
 	e.fen = fen
 	e.moves = moves
 	e.positionMtx.Unlock()
-
-	e.handleD()
 }
 
 func (e *Engine) readPosition() (string, []string) {
@@ -428,51 +426,105 @@ func (e *Engine) handleD() {
 func (e *Engine) handleGo(line string) {
 	start := time.Now()
 
-	args, err := parseGo(line)
-	if err != nil {
-		uciWriteLine(fmt.Sprintf("info string %s", err.Error()))
+	ctx, cancel := context.WithTimeout(context.Background(), 1250*time.Millisecond)
+	defer cancel()
+
+	args, parseErr := parseGo(line)
+	if parseErr != nil {
+		uciWriteLine(fmt.Sprintf("info string %s", parseErr.Error()))
 		return
 	}
 
-	_ = args
-	ctx := context.Background() // TODO: make this a cancellable context for 'stop'
+	_ = args // TODO: maybe handle the args?
 
-	fen, moves := e.readPosition()
+	startFEN, moves := e.readPosition()
+	fen := startFEN // TODO: add moves to startFEN using bitboard
 
-	speeds := e.LichessSpeeds
-	minRating := e.LichessRatingMin
-	maxRating := e.LichessRatingMax
-	since := e.LichessSince
-	until := e.LichessUntil
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-	if int(minRating) > int(maxRating) {
-		minRating, maxRating = maxRating, minRating
-	}
+	var (
+		suggestedMove lichess.OpeningExplorerMove
+		cloudEval     lichess.CloudEvalResponse
+		queryAll      chessdb.QueryAllResponse
+	)
 
-	var ratings lichess.Ratings
-	for _, item := range lichess.ValidRatings {
-		if item >= minRating && item <= maxRating {
-			ratings = append(ratings, item)
+	go func() {
+		defer wg.Done()
+
+		var lichessErr error
+
+		suggestedMove, lichessErr = e.searchLichess(ctx, startFEN, moves)
+		if lichessErr != nil {
+			// TODO: don't panic
+			uciWriteLine(fmt.Sprintf("info string lichess api error: %s", lichessErr.Error()))
+			panic(lichessErr)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		const multiPV = 3
+		var cloudErr error
+
+		cloudEval, cloudErr = lichess.GetCloudEval(ctx, fen, multiPV)
+		if cloudErr != nil {
+			// TODO: write warning?
+			//uciWriteLine(fmt.Sprintf("info string cloudeval api error: %s", cloudErr.Error()))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		var chessdbErr error
+
+		queryAll, chessdbErr = chessdb.QueryAll(ctx, fen)
+		if chessdbErr != nil {
+			// TODO: write warning?
+			//uciWriteLine(fmt.Sprintf("info string chessdb api error: %s", chessdbErr.Error()))
+		}
+	}()
+
+	wg.Wait()
+
+	uci := suggestedMove.UCI
+	depth, nodes := cloudEval.Depth, cloudEval.KNodes*1e3
+
+	var cp, mate int
+
+	for _, pv := range cloudEval.PVs {
+		pvUCI := strings.Split(pv.MovesUCI, " ")[0]
+		if pvUCI == uci {
+			cp, mate = pv.CP, pv.Mate
+			break
 		}
 	}
 
-	req := lichess.NewOpeningExplorerRequest()
-	req.FEN = fen
-	req.Play = strings.Join(moves, ",")
-	req.Speeds = speeds
-	req.Ratings = ratings
-	req.Since = since
-	req.Until = until
-
-	resp, err := lichess.GetLichessGames(ctx, req)
-	if err != nil {
-		panic(err)
+	// allow chessdb to clobber lichess cloud evals
+	for _, chessDBMove := range queryAll.Moves {
+		if chessDBMove.UCI == suggestedMove.UCI || chessDBMove.SAN == suggestedMove.SAN {
+			cp = chessDBMove.Score
+			break
+		}
 	}
 
-	uci := getSuggestedMove(resp)
+	var score string
+	if mate == 0 {
+		score = fmt.Sprintf("cp %d", cp)
+	} else {
+		score = fmt.Sprintf("mate %d", mate)
+	}
 
 	ms := time.Since(start).Milliseconds()
-	msg := fmt.Sprintf("info depth 1 time %d nodes 1 score cp 0 nps 1 tbhits 0 pv %s\nbestmove %s\n", ms, uci, uci)
+	nps := int(float64(nodes) / (float64(ms) / 1000.0))
+
+	msg := fmt.Sprintf("info depth %d time %d nodes %d score %s nps %d tbhits 0 pv %s\n"+
+		"bestmove %s\n",
+		depth, ms, nodes, score, nps, uci,
+		uci,
+	)
 	uciWriteLine(msg)
 }
 
@@ -591,70 +643,38 @@ loop:
 	return goArgs, nil
 }
 
-/*
-High Importance (Weight 9-10):
+func (e *Engine) searchLichess(ctx context.Context, fen string, moves []string) (lichess.OpeningExplorerMove, error) {
+	speeds := e.LichessSpeeds
+	minRating := e.LichessRatingMin
+	maxRating := e.LichessRatingMax
+	since := e.LichessSince
+	until := e.LichessUntil
 
-Move aesthetics:
-- [ ] Sacrifices:
-  - [ ] Sacrifices a piece (bishop, knight, or rook for pawn)
-  - [ ] Hangs a piece
-  - [ ] Gambits a pawn
-  - [ ] Exchange sacrifice
-  - [ ] Promotion to knight or bishop with minimal impact to DTM
-- [ ] Attack:
-  - [ ] Exposes enemy King
-  - [ ] Pins a piece to opponent's king, queen, or rook
-  - [ ] Forks
-- [ ] Sharpness:
-  - [ ] Opponent is left with a position that has only 1 move. Excludes piece exchanges.
-  - [ ] Punishment of Natural-Looking Moves (recaptures, castling, capturing a hanging piece)
-- [ ] Imbalances:
-  - [ ] Trades a knight for a bishop or vice versa
-  - [ ] Unusual imbalances (e.g. Queen vs. Rook + Minor Piece, for either side)
-- [ ] Activity:
-  - [ ] Opens the center
-  - [ ] Piece activity (mobility)
-  - [ ] Pawn breaks
-- [ ] Positional:
-  - [ ] Opponent is left with isolated, doubled, or backward pawns
-  - [ ] Move results in passed pawn for "hero"
-  - [ ] We have an isolated pawn, but it's good or good enough.
+	if int(minRating) > int(maxRating) {
+		minRating, maxRating = maxRating, minRating
+	}
 
-Move aesthetics (need help defining):
-- [ ] Piece coordination: Analyze connectivity between pieces (support and control of squares).
-- [ ] Quiet Moves in Tactics: Identify moves that are not captures or checks but improve evaluation.
-- [ ] Zugzwang Positions
-- [ ] Prophylactic Moves
+	var ratings lichess.Ratings
+	for _, item := range lichess.ValidRatings {
+		if item >= minRating && item <= maxRating {
+			ratings = append(ratings, item)
+		}
+	}
 
-Specific Checkmate Patterns:
-- [ ] Perfect mate
-- [ ] Underpromotion mate (bishop or knight)
-- [ ] Double-check mate
-- [ ] Discovered check mate
-- [ ] Pawn mate
-- [ ] King mate
-- [ ] O-O#
-- [ ] O-O-O#
-- [ ] En Passant mate
-- [ ] Smothered Mate
-- [ ] Smothered Pork Mate, a smothered checkmate that involves a pinned piece and a fork. Example FEN: r3r1bk/1p2q1bp/p5N1/2p2p2/2BP1B2/4P2Q/PPP2PP1/2K4R b - - 1 24
-- [ ] Block a check with checkmate
-- [ ] Bishop + Knight checkmate
-- [ ] 2-Bishop checkmate
-- [ ] 4-Knight checkmate. Example FEN: 8/8/8/6k1/4nn2/3nn3/8/4K3 w - - 16 91
-- [ ] 4-Knight Cube Checkmate. Example FEN: 2K5/8/1nnk4/1nn5/8/8/8/8 w - - 21 77
-- [ ] 6-Knight Rectangle Checkmate. Example FEN: 6k1/8/4NNN1/4NNN1/8/8/1K6/8 b - - 40 104
+	req := lichess.OpeningExplorerRequest{
+		FEN:     fen,
+		Play:    strings.Join(moves, ","),
+		Speeds:  speeds,
+		Ratings: ratings,
+		Since:   since,
+		Until:   until,
+	}
 
-Game aesthetics:
-- [ ] Openings:
-  - [ ] Popular Openings
-  - [ ] Bizarre Openings
-  - [ ] Avoid "Mid-Level" Openings
-- [ ] Accuracy:
-  - [ ] "Hero" Never Significantly Behind. Threshold: -2.0.
-  - [ ] Efficient Conversion of Advantage: Avoid mid-game and end-game inaccuracies.
-  - [ ] Efficient Maneuvering (detect transpositions, choose shorter path)
-- [ ] Anti-Draw:
-  - [ ] Avoid repetitions and lines which force them
-  - [ ] Do not allow draw by repetition or perpetual check
-*/
+	resp, err := lichess.GetLichessGames(ctx, req)
+	if err != nil {
+		return lichess.OpeningExplorerMove{}, xerrors.Errorf("%w", err)
+	}
+
+	suggestedMove := getSuggestedMove(resp)
+	return suggestedMove, nil
+}

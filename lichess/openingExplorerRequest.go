@@ -21,23 +21,27 @@ type OpeningExplorerRequest struct {
 	History     bool
 }
 
-func NewOpeningExplorerRequest() OpeningExplorerRequest {
-	return OpeningExplorerRequest{
-		Variant:     "standard",
-		FEN:         bitboard.StartPos,
-		Play:        "",
-		Speeds:      ValidSpeeds,
-		Ratings:     ValidRatings,
-		Since:       Date{},
-		Until:       Date{},
-		Moves:       20,
-		TopGames:    0,
-		RecentGames: 0,
-		History:     false,
-	}
-}
-
 func (r OpeningExplorerRequest) QueryString() url.Values {
+	// set defaults
+
+	if r.Variant == "" {
+		r.Variant = "standard"
+	}
+	if r.FEN == "" {
+		r.FEN = bitboard.StartPos
+	}
+	if r.Moves == 0 {
+		r.Moves = 20
+	}
+	if len(r.Speeds) == 0 {
+		r.Speeds = ValidSpeeds
+	}
+	if len(r.Ratings) == 0 {
+		r.Ratings = ValidRatings
+	}
+
+	// set query param values
+
 	values := make(url.Values)
 
 	values.Set("variant", r.Variant)

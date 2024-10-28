@@ -15,7 +15,6 @@ import (
 const (
 	EngineName = "Stockhuman"
 	Version    = "1.0"
-	Author     = "bonerpull"
 )
 
 func main() {
@@ -34,7 +33,7 @@ func main() {
 	//fen := "r1bqkb1r/ppp2ppp/2n2n2/1B2N3/4p3/P1N5/1PPP1PPP/R1BQK2R b KQkq - 0 6" // Gunsberg
 	//fen := "rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6" // Najdorf
 
-	uciWriteLine(fmt.Sprintf("%s %s by %s", EngineName, Version, Author))
+	uciWriteLine(fmt.Sprintf("%s v%s", EngineName, Version))
 	uciLoop()
 }
 
@@ -89,7 +88,7 @@ func uciLoop() {
 	wg.Wait()
 }
 
-func getSuggestedMove(resp lichess.OpeningExplorerResponse) string {
+func getSuggestedMove(resp lichess.OpeningExplorerResponse) lichess.OpeningExplorerMove {
 	var sumMoveTotals int
 
 	type Range struct {
@@ -97,19 +96,14 @@ func getSuggestedMove(resp lichess.OpeningExplorerResponse) string {
 		Upper int
 	}
 
-	m := make(map[string]Range)
-	sanToUCI := make(map[string]string)
+	ranges := make([]Range, len(resp.Moves))
 
-	for _, move := range resp.Moves {
-		r := Range{Lower: sumMoveTotals}
-
+	for i, move := range resp.Moves {
 		moveTotal := move.Total()
+
+		ranges[i] = Range{Lower: sumMoveTotals, Upper: sumMoveTotals + moveTotal}
+
 		sumMoveTotals += moveTotal
-
-		r.Upper = sumMoveTotals
-
-		m[move.SAN] = r
-		sanToUCI[move.SAN] = move.UCI
 
 		//fmt.Printf("Move: %-7s Games: %11s Popularity: %5.1f%% White: %5.1f%% Draw: %5.1f%% Black: %5.1f%%\n",
 		//	move.SAN,
@@ -123,14 +117,14 @@ func getSuggestedMove(resp lichess.OpeningExplorerResponse) string {
 
 	// TODO
 	if sumMoveTotals == 0 {
-		return "0000"
+		return lichess.OpeningExplorerMove{SAN: "0000", UCI: "0000"}
 	}
 
-	getRandomMove := func() string {
+	getRandomMove := func() int {
 		n := rand.Intn(sumMoveTotals)
-		for k, v := range m {
-			if n >= v.Lower && n < v.Upper {
-				return k
+		for i, r := range ranges {
+			if n >= r.Lower && n < r.Upper {
+				return i
 			}
 		}
 		panic(fmt.Errorf("couldn't find entry that satisfied n=%d sumMoveTotals=%d", n, sumMoveTotals))
@@ -139,12 +133,13 @@ func getSuggestedMove(resp lichess.OpeningExplorerResponse) string {
 	//const totalSimulationRuns = 1_000_000
 	//simulationResults := make(map[string]int)
 	//for i := 0; i < totalSimulationRuns; i++ {
-	//	san := getRandomMove()
+	//	idx := getRandomMove()
+	//	san := resp.Moves[idx].SAN
 	//	simulationResults[san] += 1
 	//}
 	//
-	//for _, move := range resp.Moves {
-	//	r := m[move.SAN]
+	//for i, move := range resp.Moves {
+	//	r := ranges[i]
 	//	moveTotal := r.Upper - r.Lower
 	//
 	//	actualPopularity := float64(moveTotal) / float64(sumMoveTotals) * 100
@@ -158,6 +153,6 @@ func getSuggestedMove(resp lichess.OpeningExplorerResponse) string {
 	//	)
 	//}
 
-	san := getRandomMove()
-	return sanToUCI[san]
+	randomMoveIdx := getRandomMove()
+	return resp.Moves[randomMoveIdx]
 }
