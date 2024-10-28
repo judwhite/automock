@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"sort"
 	"strconv"
@@ -549,8 +550,9 @@ func (e *Engine) handleGo(line string) {
 
 	uci := suggestedMove.UCI
 	if uci == "" || uci == "0000" {
-		uciWriteLine("bestmove 0000")
-		return
+		// choose a random legal move
+		legalMoves := bb.LegalMoves()
+		uci = legalMoves[rand.Intn(len(legalMoves))]
 	}
 
 	var cp, mate int
