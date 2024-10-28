@@ -13,19 +13,35 @@ import (
 )
 
 func GetLichessGames(ctx context.Context, req OpeningExplorerRequest) (OpeningExplorerResponse, error) {
-	const endpointURL = "https://explorer.lichess.ovh/lichess"
-
-	b, err := httpcache.Get(ctx, endpointURL, req.QueryString(), authHeader)
+	response, cacheHit, err := getLichessGames(ctx, false, req)
 	if err != nil {
 		return OpeningExplorerResponse{}, xerrors.Errorf("%w", err)
 	}
 
-	var response OpeningExplorerResponse
-	if err := json.Unmarshal(b, &response); err != nil {
-		return OpeningExplorerResponse{}, xerrors.Errorf("%w", err)
+	if cacheHit && len(response.Moves) == 0 {
+		response, _, err = getLichessGames(ctx, true, req)
+		if err != nil {
+			return OpeningExplorerResponse{}, xerrors.Errorf("%w", err)
+		}
 	}
 
 	return response, nil
+}
+
+func getLichessGames(ctx context.Context, skipCache bool, req OpeningExplorerRequest) (OpeningExplorerResponse, bool, error) {
+	const endpointURL = "https://explorer.lichess.ovh/lichess"
+
+	b, cacheHit, err := httpcache.Get(ctx, skipCache, endpointURL, req.QueryString(), authHeader)
+	if err != nil {
+		return OpeningExplorerResponse{}, cacheHit, xerrors.Errorf("%w", err)
+	}
+
+	var response OpeningExplorerResponse
+	if err := json.Unmarshal(b, &response); err != nil {
+		return OpeningExplorerResponse{}, cacheHit, xerrors.Errorf("%w", err)
+	}
+
+	return response, cacheHit, nil
 }
 
 type CloudEvalResponse struct {
@@ -43,6 +59,22 @@ type CloudEvalPV struct {
 }
 
 func GetCloudEval(ctx context.Context, fen string, multiPV int) (CloudEvalResponse, error) {
+	response, cacheHit, err := getCloudEval(ctx, false, fen, multiPV)
+	if err != nil {
+		return CloudEvalResponse{}, xerrors.Errorf("%w", err)
+	}
+
+	if cacheHit && len(response.PVs) == 0 {
+		response, _, err = getCloudEval(ctx, false, fen, multiPV)
+		if err != nil {
+			return CloudEvalResponse{}, xerrors.Errorf("%w", err)
+		}
+	}
+
+	return response, nil
+}
+
+func getCloudEval(ctx context.Context, skipCache bool, fen string, multiPV int) (CloudEvalResponse, bool, error) {
 	// https://lichess.org/api/cloud-eval?fen=rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR%20b%20KQkq%20-%200%202&multiPv=3
 	const endpointURL = "https://lichess.org/api/cloud-eval"
 
@@ -50,14 +82,14 @@ func GetCloudEval(ctx context.Context, fen string, multiPV int) (CloudEvalRespon
 	params.Set("fen", fen)
 	params.Set("multiPv", strconv.Itoa(multiPV))
 
-	b, err := httpcache.Get(ctx, endpointURL, params, authHeader)
+	b, cacheHit, err := httpcache.Get(ctx, skipCache, endpointURL, params, authHeader)
 	if err != nil {
-		return CloudEvalResponse{}, xerrors.Errorf("%w", err)
+		return CloudEvalResponse{}, cacheHit, xerrors.Errorf("%w", err)
 	}
 
 	var response CloudEvalResponse
 	if err := json.Unmarshal(b, &response); err != nil {
-		return CloudEvalResponse{}, xerrors.Errorf("%w", err)
+		return CloudEvalResponse{}, cacheHit, xerrors.Errorf("%w", err)
 	}
 
 	// NOTE: Response has been seen with duplicates.
@@ -123,5 +155,5 @@ func GetCloudEval(ctx context.Context, fen string, multiPV int) (CloudEvalRespon
 		seen[uci] = struct{}{}
 	}
 
-	return response, nil
+	return response, cacheHit, nil
 }

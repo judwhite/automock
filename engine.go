@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -15,6 +16,7 @@ import (
 	"stockhuman/bitboard"
 	"stockhuman/chessdb"
 	"stockhuman/lichess"
+	"stockhuman/utils"
 )
 
 type Engine struct {
@@ -33,6 +35,10 @@ type Engine struct {
 	fen         string
 	moves       []string
 	positionMtx sync.RWMutex
+
+	goRunning int64
+	goMtx     sync.Mutex
+	cancelGo  context.CancelFunc
 }
 
 func NewEngine() *Engine {
@@ -143,6 +149,8 @@ func (e *Engine) ParseInput(line string) {
 		return
 	}
 
+	utils.Log("> " + line)
+
 	command := parts[0]
 	switch command {
 	case "uci":
@@ -160,7 +168,7 @@ func (e *Engine) ParseInput(line string) {
 	case "ponderhit":
 		uciWriteLine("info string 'ponderhit' TODO")
 	case "stop":
-		uciWriteLine("info string 'stop' TODO")
+		e.handleStop()
 	case "show":
 		e.handleShow()
 	case "d":
@@ -191,7 +199,21 @@ func (e *Engine) handleUCINewGame() {
 }
 
 func (e *Engine) handleIsReady() {
-	uciWriteLine("readyok")
+	for {
+		if atomic.LoadInt64(&e.goRunning) == 0 {
+			e.goMtx.Lock()
+			cancelFuncIsNil := e.cancelGo == nil
+			e.goMtx.Unlock()
+
+			if cancelFuncIsNil {
+				uciWriteLine("readyok")
+				return
+			}
+		}
+
+		utils.Log("engine is not ready")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func (e *Engine) handleSetOption(line string) {
@@ -435,10 +457,15 @@ func (e *Engine) handleD() {
 }
 
 func (e *Engine) handleGo(line string) {
-	start := time.Now()
+	if !atomic.CompareAndSwapInt64(&e.goRunning, 0, 1) {
+		return
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1250*time.Millisecond)
-	defer cancel()
+	defer func() {
+		atomic.StoreInt64(&e.goRunning, 0)
+	}()
+
+	start := time.Now()
 
 	args, parseErr := parseGo(line)
 	if parseErr != nil {
@@ -447,6 +474,13 @@ func (e *Engine) handleGo(line string) {
 	}
 
 	_ = args // TODO: maybe handle the args?
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5000*time.Millisecond)
+	defer cancel()
+
+	e.goMtx.Lock()
+	e.cancelGo = cancel
+	e.goMtx.Unlock()
 
 	startFEN, moves := e.readPosition()
 
@@ -479,9 +513,7 @@ func (e *Engine) handleGo(line string) {
 
 		suggestedMove, lichessErr = e.searchLichess(ctx, startFEN, moves)
 		if lichessErr != nil {
-			// TODO: don't panic
 			uciWriteLine(fmt.Sprintf("info string lichess api error: %s", lichessErr.Error()))
-			panic(lichessErr)
 		}
 	}()
 
@@ -513,6 +545,10 @@ func (e *Engine) handleGo(line string) {
 	wg.Wait()
 
 	uci := suggestedMove.UCI
+	if uci == "" || uci == "0000" {
+		uciWriteLine("bestmove 0000")
+		return
+	}
 
 	var cp, mate int
 
@@ -697,4 +733,13 @@ func (e *Engine) searchLichess(ctx context.Context, fen string, moves []string) 
 
 	suggestedMove := getSuggestedMove(resp)
 	return suggestedMove, nil
+}
+
+func (e *Engine) handleStop() {
+	e.goMtx.Lock()
+	if e.cancelGo != nil {
+		e.cancelGo()
+		e.cancelGo = nil
+	}
+	e.goMtx.Unlock()
 }

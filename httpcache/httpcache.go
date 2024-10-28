@@ -15,6 +15,9 @@ import (
 	"sync"
 
 	"golang.org/x/xerrors"
+
+	"stockhuman/commas"
+	"stockhuman/utils"
 )
 
 const cacheDir = "./cache"
@@ -25,11 +28,14 @@ var (
 	fileCacheMtx sync.RWMutex
 )
 
-func Get(ctx context.Context, url string, query url.Values, header http.Header) ([]byte, error) {
+func Get(ctx context.Context, skipCache bool, url string, query url.Values, header http.Header) ([]byte, bool, error) {
 	queryKey := getQueryKey(url, query)
-	cachedResponse := getCachedResponse(queryKey)
-	if cachedResponse != nil {
-		return cachedResponse, nil
+
+	if !skipCache {
+		cachedResponse := getCachedResponse(queryKey)
+		if cachedResponse != nil {
+			return cachedResponse, true, nil
+		}
 	}
 
 	queryString := query.Encode()
@@ -37,9 +43,11 @@ func Get(ctx context.Context, url string, query url.Values, header http.Header) 
 		url += "?" + queryString
 	}
 
+	utils.Log(fmt.Sprintf("... calling GET %s", url))
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create request: %w", err)
+		return nil, false, xerrors.Errorf("failed to create request: %w", err)
 	}
 
 	for k, v := range header {
@@ -50,22 +58,24 @@ func Get(ctx context.Context, url string, query url.Values, header http.Header) 
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, xerrors.Errorf("GET %s: %w", url, err)
+		return nil, false, xerrors.Errorf("GET %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("GET %s, error reading body: %w", url, err)
+		return nil, false, xerrors.Errorf("GET %s, error reading body: %w", url, err)
 	}
 
+	utils.Log(fmt.Sprintf("... GET %s returned HTTP %s %s bytes", url, resp.Status, commas.Int(len(responseBody))))
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, xerrors.Errorf("unexpected status code: %s response body: %s", resp.Status, string(responseBody))
+		return nil, false, xerrors.Errorf("unexpected status code: %s response body: %s", resp.Status, string(responseBody))
 	}
 
 	storeCachedResponse(queryKey, url, query.Encode(), responseBody)
 
-	return responseBody, nil
+	return responseBody, false, nil
 }
 
 func getQueryKey(url string, query url.Values) string {

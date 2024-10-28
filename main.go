@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"stockhuman/lichess"
+	"stockhuman/utils"
 )
 
 const (
@@ -42,6 +43,13 @@ var stdoutMutex sync.Mutex
 func uciWriteLine(line string) {
 	if !strings.HasSuffix(line, "\n") {
 		line += "\n"
+	}
+
+	for _, ln := range strings.Split(line, "\n") {
+		if ln == "" {
+			continue
+		}
+		utils.Log("< " + ln)
 	}
 
 	stdoutMutex.Lock()
