@@ -14,29 +14,19 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"stockhuman/bitboard"
-	"stockhuman/chessdb"
-	"stockhuman/extengine"
-	"stockhuman/lichess"
-	"stockhuman/utils"
+	"automock/bitboard"
+	"automock/chessdb"
+	"automock/extengine"
+	"automock/lichess"
+	"automock/utils"
 )
 
 const (
-	stockfishPath = "/home/jud/projects/sf/stockfish"
-	berserkPath   = "/home/jud/projects/sf/berserk_13"
-	dragonPath    = "/media/jud/WD6TB/chess-books/engines/dragon/dragon-3.2-linux-avx2"
+	// TODO: remove hard coded paths
+	berserkPath = "/home/jud/projects/sf/berserk_13"
 
 	bufferedChannelSize = 4096
 )
-
-var dragonPersonalities = []string{
-	"Human",
-	"Aggressive",
-	"Defensive",
-	"Active",
-	"Positional",
-	"Endgame",
-}
 
 type Engine struct {
 	UCIOptions []UCIOption
@@ -937,17 +927,6 @@ func (e *Engine) setupExternalEngine() error {
 
 	e.extEngine = extEngine
 
-	if e.extEngine.IsPath(dragonPath) {
-		setOptions := []extengine.SetOption{
-			{Name: "Table Memory", Value: "512"},
-		}
-
-		if err := e.extEngine.SetOptions(setOptions); err != nil {
-			utils.Log(fmt.Sprintf("external engine: error: %s", err.Error()))
-			return xerrors.Errorf("%w", err)
-		}
-	}
-
 	if err := e.setupExternalEnginePersonality(); err != nil {
 		utils.Log(fmt.Sprintf("external engine: error: %s", err.Error()))
 	}
@@ -958,15 +937,7 @@ func (e *Engine) setupExternalEngine() error {
 func (e *Engine) setupExternalEnginePersonality() error {
 	var setOptions []extengine.SetOption
 
-	if e.extEngine.IsPath(dragonPath) {
-		//personality := dragonPersonalities[rand.Intn(len(dragonPersonalities))]
-		setOptions = []extengine.SetOption{
-			{Name: "Contempt", Value: strconv.Itoa(e.Contempt * 2)},
-			//{Name: "Personality", Value: personality},
-			//{Name: "UCI Elo", Value: "2200"},
-		}
-
-	} else if e.extEngine.IsPath(berserkPath) {
+	if e.extEngine.IsPath(berserkPath) {
 		setOptions = []extengine.SetOption{
 			{Name: "Contempt", Value: strconv.Itoa(e.Contempt)},
 		}

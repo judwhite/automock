@@ -16,8 +16,8 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"stockhuman/commas"
-	"stockhuman/utils"
+	"automock/commas"
+	"automock/utils"
 )
 
 const cacheDir = "./cache"

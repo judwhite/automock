@@ -7,15 +7,18 @@ import (
 	"time"
 )
 
+// TODO: remove hard coded paths
+const logFileName = "/home/jud/projects/automock/automock.log"
+
 var logFile *os.File
 
 func init() {
 	var err error
-	logFile, err = os.OpenFile("/home/jud/projects/stockhuman/stockhuman.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	logFile, err = os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		panic(err)
 	}
-	Log(fmt.Sprintf("%s %s started", "Stockhuman", "1.0"))
+	Log("UCI Engine Started")
 }
 
 func Log(line string) {

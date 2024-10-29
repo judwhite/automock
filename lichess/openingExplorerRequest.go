@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"stockhuman/bitboard"
+	"automock/bitboard"
 )
 
 type OpeningExplorerRequest struct {

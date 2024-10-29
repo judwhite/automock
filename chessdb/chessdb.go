@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"stockhuman/httpcache"
+	"automock/httpcache"
 )
 
 const endpointURL = "https://www.chessdb.cn/cdb.php"

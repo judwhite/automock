@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"stockhuman/httpcache"
+	"automock/httpcache"
 )
 
 func GetLichessGames(ctx context.Context, req OpeningExplorerRequest) (OpeningExplorerResponse, error) {

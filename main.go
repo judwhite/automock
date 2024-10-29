@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"stockhuman/lichess"
-	"stockhuman/utils"
+	"automock/lichess"
+	"automock/utils"
 )
 
 const (

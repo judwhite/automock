@@ -16,7 +16,7 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"stockhuman/utils"
+	"automock/utils"
 )
 
 const bufferedChannelSize = 4096
@@ -103,27 +103,7 @@ func New(opts Opts) (*ExternalEngine, error) {
 	}
 	utils.Log(fmt.Sprintf("external engine: name: %s", name))
 
-	// Lc0
-	// setoption name UCI_Chess960 value true
-	// setoption name UCI_ShowWDL value true
-	// setoption name UCI_ShowMovesLeft value true
-	// setoption name UCI_AnalyseMode value true
-	// error Unknown option: UCI_AnalyseMode
-	// setoption name MultiPV value 4
-	// setoption name WeightsFile value /home/jud/projects/sf/lc0-weights/t2-768x15x24h-swa-5230000.pb.gz
-	// setoption name Backend value cuda-auto
-	// setoption name NNCacheSize value 5000000
-	// setoption name Threads value 12
-	// setoption name RamLimitMb value 16384
-	// setoption name SyzygyPath value /home/jud/projects/tablebases/cutechess/:/home/jud/projects/tablebases/cutechess/tb6/
-	// setoption name Ponder value false
-	// setoption name VerboseMoveStats value true
-	// setoption name LogLiveStats value true
-
 	setOptions := []SetOption{
-		//{"UCI_AnalyseMode", true},
-		//{"UCI_Chess960", true},
-		//{"UCI_Variant", "chess"},
 		{"Hash", strconv.Itoa(engine.opts.Hash)},
 		{"Threads", strconv.Itoa(engine.opts.Threads)},
 		{"MultiPV", strconv.Itoa(engine.opts.MultiPV)},

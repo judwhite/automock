@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"stockhuman/utils"
+	"automock/utils"
 )
 
 var (

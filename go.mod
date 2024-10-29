@@ -1,4 +1,4 @@
-module stockhuman
+module automock
 
 go 1.19
 
