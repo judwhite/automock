@@ -16,16 +16,35 @@ import (
 
 	"stockhuman/bitboard"
 	"stockhuman/chessdb"
+	"stockhuman/extengine"
 	"stockhuman/lichess"
 	"stockhuman/utils"
 )
 
+const (
+	stockfishPath = "/home/jud/projects/sf/stockfish"
+	berserkPath   = "/home/jud/projects/sf/berserk_13"
+	dragonPath    = "/media/jud/WD6TB/chess-books/engines/dragon/dragon-3.2-linux-avx2"
+
+	bufferedChannelSize = 4096
+)
+
+var dragonPersonalities = []string{
+	"Human",
+	"Aggressive",
+	"Defensive",
+	"Active",
+	"Positional",
+	"Endgame",
+}
+
 type Engine struct {
 	UCIOptions []UCIOption
 
-	Hash    int
-	Threads int
-	MultiPV int
+	Hash     int
+	Threads  int
+	MultiPV  int
+	Contempt int
 
 	LichessSpeeds    lichess.Speeds
 	LichessRatingMin lichess.Rating
@@ -40,6 +59,8 @@ type Engine struct {
 	goRunning int64
 	goMtx     sync.Mutex
 	cancelGo  context.CancelFunc
+
+	extEngine *extengine.ExternalEngine
 }
 
 func NewEngine() *Engine {
@@ -47,11 +68,12 @@ func NewEngine() *Engine {
 		defaultHash             = 16
 		defaultThreads          = 1
 		defaultMultiPV          = 1
+		defaultContempt         = 75
 		defaultLichessSpeeds    = "ultraBullet,bullet,blitz,rapid,classical,correspondence"
 		defaultLichessRatingMin = 1600
 		defaultLichessRatingMax = 2500
 		defaultLichessSince     = "2012-12"
-		defaultLichessUntil     = "3000-12"
+		defaultLichessUntil     = ""
 	)
 
 	e := Engine{
@@ -77,6 +99,13 @@ func NewEngine() *Engine {
 				Default: strconv.Itoa(defaultMultiPV),
 				Min:     1,
 				Max:     256,
+			},
+			{
+				Name:    "Contempt",
+				Type:    "spin",
+				Default: strconv.Itoa(defaultContempt),
+				Min:     -100,
+				Max:     100,
 			},
 			{
 				Name:    "Lichess_Speeds",
@@ -123,6 +152,9 @@ func NewEngine() *Engine {
 	if e.MultiPV != defaultMultiPV {
 		panic(fmt.Errorf("field MultiPV '%d' != default '%d'", e.MultiPV, defaultMultiPV))
 	}
+	if e.Contempt != defaultContempt {
+		panic(fmt.Errorf("field Contempt '%d' != default '%d'", e.Contempt, defaultContempt))
+	}
 	if e.LichessSpeeds.String() != defaultLichessSpeeds {
 		panic(fmt.Errorf("field LichessSpeeds '%s' != default '%s'", e.LichessSpeeds, defaultLichessSpeeds))
 	}
@@ -137,6 +169,10 @@ func NewEngine() *Engine {
 	}
 	if e.LichessUntil.String() != defaultLichessUntil {
 		panic(fmt.Errorf("field LichessUntil '%s' != default '%s'", e.LichessUntil.String(), defaultLichessUntil))
+	}
+
+	if err := e.setupExternalEngine(); err != nil {
+		panic(err)
 	}
 
 	return &e
@@ -197,6 +233,16 @@ func (e *Engine) handleUCI() {
 
 func (e *Engine) handleUCINewGame() {
 	e.handlePosition("position startpos")
+
+	if !e.extEngine.IsAlive() {
+		if err := e.setupExternalEngine(); err != nil {
+			panic(err)
+		}
+	} else {
+		if err := e.setupExternalEnginePersonality(); err != nil {
+			utils.Log(fmt.Sprintf("external engine: error: %s", err.Error()))
+		}
+	}
 }
 
 func (e *Engine) handleIsReady() {
@@ -256,6 +302,8 @@ func (e *Engine) handleSetOption(line string) {
 			e.Threads = n
 		case "multipv":
 			e.MultiPV = n
+		case "contempt":
+			e.Contempt = n
 		}
 
 	case "string":
@@ -286,17 +334,27 @@ func (e *Engine) handleSetOption(line string) {
 			e.LichessSpeeds = lichessSpeeds
 
 		case "lichess_since":
-			dt, err := time.Parse("2006-01", value)
-			if err != nil {
-				return
+			if value == "" {
+				e.LichessSince = lichess.Date{Year: 0, Month: 0}
+			} else {
+				dt, err := time.Parse("2006-01", value)
+				if err != nil {
+					e.LichessSince = lichess.Date{Year: 0, Month: 0}
+					return
+				}
+				e.LichessSince = lichess.Date{Year: dt.Year(), Month: int(dt.Month())}
 			}
-			e.LichessSince = lichess.Date{Year: dt.Year(), Month: int(dt.Month())}
 		case "lichess_until":
-			dt, err := time.Parse("2006-01", value)
-			if err != nil {
-				return
+			if value == "" {
+				e.LichessUntil = lichess.Date{Year: 0, Month: 0}
+			} else {
+				dt, err := time.Parse("2006-01", value)
+				if err != nil {
+					e.LichessUntil = lichess.Date{Year: 0, Month: 0}
+					return
+				}
+				e.LichessUntil = lichess.Date{Year: dt.Year(), Month: int(dt.Month())}
 			}
-			e.LichessUntil = lichess.Date{Year: dt.Year(), Month: int(dt.Month())}
 		}
 
 	case "combo":
@@ -366,6 +424,7 @@ func (e *Engine) handleShow() {
 	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Hash", e.Hash))
 	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Threads", e.Threads))
 	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "MultiPV", e.MultiPV))
+	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Contempt", e.Contempt))
 	sb.WriteString(fmt.Sprintf("info string option name %s value %s\n", "Lichess_Speeds", e.LichessSpeeds.String()))
 	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Lichess_Rating_Min", e.LichessRatingMin))
 	sb.WriteString(fmt.Sprintf("info string option name %s value %d\n", "Lichess_Rating_Max", e.LichessRatingMax))
@@ -502,13 +561,95 @@ func (e *Engine) handleGo(line string) {
 	fen := bb.FEN()
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(4)
 
 	var (
-		suggestedMove lichess.OpeningExplorerMove
-		cloudEval     lichess.CloudEvalResponse
-		queryAll      chessdb.QueryAllResponse
+		suggestedMove     lichess.OpeningExplorerMove
+		cloudEval         lichess.CloudEvalResponse
+		queryAll          chessdb.QueryAllResponse
+		externalEngineUCI string
 	)
+
+	go func() {
+		defer wg.Done()
+
+		job := extengine.AnalysisRequest{
+			RequestID:  NewID(),
+			InitialFEN: fen,
+			MultiPV:    1,
+			MoveTime:   1000,
+		}
+
+		responses := make(chan extengine.AnalysisResponse, bufferedChannelSize)
+
+		jobStarted := make(chan struct{})
+
+		go func() {
+			analysisStream, err := e.extEngine.Analyze(ctx, job, jobStarted)
+			if err != nil {
+				utils.Log(fmt.Sprintf("external engine: error: %s", err.Error()))
+			}
+
+			go func() {
+				defer func() {
+					responses <- extengine.AnalysisResponse{RequestID: job.RequestID, End: true}
+				}()
+
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case lineItem, ok := <-analysisStream:
+						if !ok {
+							return
+						}
+						responses <- extengine.AnalysisResponse{RequestID: job.RequestID, Line: lineItem}
+					}
+				}
+			}()
+		}()
+
+		select {
+		case <-jobStarted:
+			utils.Log(fmt.Sprintf("external engine: received 'job started'"))
+			break
+		case <-ctx.Done():
+			return
+		}
+
+		for resp := range responses {
+			if resp.End {
+				utils.Log(fmt.Sprintf("external engine: received 'job ended'"))
+				break
+			}
+
+			if strings.HasPrefix(line, "bestmove ") {
+				line = strings.TrimPrefix(line, "bestmove ")
+				idx := strings.Index(line, " ")
+				if idx != -1 {
+					line = line[:idx]
+				}
+				externalEngineUCI = line
+				continue
+			}
+
+			if strings.Contains(line, "multipv") && !strings.Contains(line, "multipv 1") {
+				continue
+			}
+
+			idx := strings.Index(resp.Line, " pv ")
+			if idx == -1 {
+				continue
+			}
+			line = resp.Line[idx+4:]
+
+			idx = strings.Index(line, " ")
+			if idx != -1 {
+				line = line[:idx]
+			}
+			externalEngineUCI = line
+		}
+	}()
 
 	go func() {
 		defer wg.Done()
@@ -548,11 +689,19 @@ func (e *Engine) handleGo(line string) {
 
 	wg.Wait()
 
+	moveSource := "lichess_data"
 	uci := suggestedMove.UCI
 	if uci == "" || uci == "0000" {
-		// choose a random legal move
-		legalMoves := bb.LegalMoves()
-		uci = legalMoves[rand.Intn(len(legalMoves))]
+		if externalEngineUCI != "" && externalEngineUCI != "0000" {
+			// use external engine's move
+			moveSource = "external_engine"
+			uci = externalEngineUCI
+		} else {
+			// choose a random legal move
+			moveSource = "random_legal_move"
+			legalMoves := bb.LegalMoves()
+			uci = legalMoves[rand.Intn(len(legalMoves))]
+		}
 	}
 
 	var cp, mate int
@@ -582,8 +731,10 @@ func (e *Engine) handleGo(line string) {
 
 	ms := time.Since(start).Milliseconds()
 	msg := fmt.Sprintf("info depth %d time %d score %s pv %s\n"+
+		"info string movesource %s move %s\n"+
 		"bestmove %s\n",
 		18, ms, score, uci,
+		moveSource, uci,
 		uci,
 	)
 	uciWriteLine(msg)
@@ -752,6 +903,10 @@ func (e *Engine) handleStop() {
 func (e *Engine) handleQuit() {
 	utils.Log("shutting down...")
 
+	if err := e.extEngine.Terminate(); err != nil {
+		utils.Log(fmt.Sprintf("external engine: failed to terminated: %s", err.Error()))
+	}
+
 	start := time.Now()
 	e.handleStop()
 	for atomic.LoadInt64(&e.goRunning) == 1 && time.Since(start) < 1500*time.Millisecond {
@@ -760,4 +915,66 @@ func (e *Engine) handleQuit() {
 
 	utils.Log("goodbye.")
 	os.Exit(0)
+}
+
+func NewID() string {
+	const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	var id string
+	for i := 0; i < 10; i++ {
+		id += string(alphabet[rand.Intn(len(alphabet))])
+	}
+
+	return id
+}
+
+func (e *Engine) setupExternalEngine() error {
+	extEngine, err := extengine.New(extengine.Opts{Threads: e.Threads, Hash: e.Hash, MultiPV: e.MultiPV, EnginePath: berserkPath})
+	if err != nil {
+		utils.Log(fmt.Sprintf("external engine: error: %s", err.Error()))
+		return xerrors.Errorf("%w", err)
+	}
+
+	e.extEngine = extEngine
+
+	if e.extEngine.IsPath(dragonPath) {
+		setOptions := []extengine.SetOption{
+			{Name: "Table Memory", Value: "512"},
+		}
+
+		if err := e.extEngine.SetOptions(setOptions); err != nil {
+			utils.Log(fmt.Sprintf("external engine: error: %s", err.Error()))
+			return xerrors.Errorf("%w", err)
+		}
+	}
+
+	if err := e.setupExternalEnginePersonality(); err != nil {
+		utils.Log(fmt.Sprintf("external engine: error: %s", err.Error()))
+	}
+
+	return nil
+}
+
+func (e *Engine) setupExternalEnginePersonality() error {
+	var setOptions []extengine.SetOption
+
+	if e.extEngine.IsPath(dragonPath) {
+		//personality := dragonPersonalities[rand.Intn(len(dragonPersonalities))]
+		setOptions = []extengine.SetOption{
+			{Name: "Contempt", Value: strconv.Itoa(e.Contempt * 2)},
+			//{Name: "Personality", Value: personality},
+			//{Name: "UCI Elo", Value: "2200"},
+		}
+
+	} else if e.extEngine.IsPath(berserkPath) {
+		setOptions = []extengine.SetOption{
+			{Name: "Contempt", Value: strconv.Itoa(e.Contempt)},
+		}
+	}
+
+	if err := e.extEngine.SetOptions(setOptions); err != nil {
+		return xerrors.Errorf("%w", err)
+	}
+
+	return nil
 }

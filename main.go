@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	EngineName = "Stockhuman"
-	Version    = "1.0"
+	EngineName = "AutoMock"
+	Version    = "2.0"
 )
 
 func main() {
