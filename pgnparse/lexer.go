@@ -438,7 +438,7 @@ func isMovePrefixCharacter(r byte) bool {
 		return true
 	}
 	switch r {
-	case 'K', 'Q', 'R', 'N', 'B', 'O', '@':
+	case 'K', 'Q', 'R', 'N', 'B', 'O', '@', 'P':
 		return true
 	}
 	return false

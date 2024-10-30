@@ -1,14 +1,16 @@
 package pgnparse
 
 import (
-	"automock/bitboard"
 	"bytes"
 	"fmt"
-	"golang.org/x/xerrors"
 	"io"
 	"strconv"
 	"strings"
 	"sync"
+
+	"golang.org/x/xerrors"
+
+	"automock/bitboard"
 )
 
 func ParseReader(r io.Reader) (*PGN, error) {
@@ -169,9 +171,16 @@ func parse(input []byte) (*PGN, error) {
 
 		game, rest, err := parseGame(items)
 		if err != nil {
+			if game == nil {
+				return nil, fmt.Errorf("game #%d: %v", len(games)+1, err)
+			}
 			return nil, fmt.Errorf("game #%d: tags: %v: %v", len(games)+1, game.Tags, err)
 		}
-		games = append(games, game)
+
+		variant := game.Tags.Get("Variant")
+		if variant == "" || strings.EqualFold(variant, "Standard") {
+			games = append(games, game)
+		}
 
 		items = rest
 	}

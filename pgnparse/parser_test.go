@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"automock/bitboard"
@@ -769,14 +770,17 @@ func BenchmarkIsCheck(b *testing.B) {
 
 	game := pgn.Games[0]
 
+	var moves []string
+	for _, move := range game.Moves {
+		moves = append(moves, move.UCI)
+	}
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bb := bitboard.StartPosBoard()
 
-		for _, move := range game.Moves {
-			if bb, err = bb.Apply(move.UCI); err != nil {
-				b.Fatal(fmt.Errorf("'%s': %v", pgnFilename, err))
-			}
+		if _, err = bb.Apply(moves...); err != nil {
+			b.Fatal(fmt.Errorf("'%s': moves: '%s': %v", pgnFilename, strings.Join(moves, ","), err))
 		}
 	}
 }
