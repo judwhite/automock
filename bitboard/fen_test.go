@@ -14,7 +14,7 @@ func TestParseFEN(t *testing.T) {
 	cases := []struct {
 		fen                string
 		wantActiveColor    Color
-		wantCastle         int
+		wantCastle         uint8
 		wantEPSquare       int
 		wantHalfMoveClock  int
 		wantFullMoveNumber int

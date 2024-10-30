@@ -494,7 +494,7 @@ func (e *Engine) handleD() {
 
 		bb, err := bitboard.ParseFEN(fen)
 		if err == nil {
-			bb, err = bb.Apply(moves)
+			bb, err = bb.Apply(moves...)
 			if err == nil {
 				sb.WriteByte('\n')
 				sb.WriteString("info string position fen ")
@@ -542,7 +542,7 @@ func (e *Engine) handleGo(line string) {
 		uciWriteLine(fmt.Sprintf("info string %s", err.Error()))
 		panic(err)
 	}
-	bb, err = bb.Apply(moves)
+	bb, err = bb.Apply(moves...)
 	if err != nil {
 		uciWriteLine(fmt.Sprintf("info string %s", err.Error()))
 		panic(err)

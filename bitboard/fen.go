@@ -8,6 +8,27 @@ import (
 	"golang.org/x/xerrors"
 )
 
+var fenCastlingAvailability = [16]string{
+	" -",    // 0000
+	" K",    // 0001
+	" Q",    // 0010
+	" KQ",   // 0011
+	" k",    // 0100
+	" Kk",   // 0101
+	" Qk",   // 0110
+	" KQk",  // 0111
+	" q",    // 1000
+	" Kq",   // 1001
+	" Qq",   // 1010
+	" KQq",  // 1011
+	" kq",   // 1100
+	" Kkq",  // 1101
+	" Qkq",  // 1110
+	" KQkq", // 1111
+}
+
+var benchCastlingAvailabilityMethod int
+
 func ParseFEN(fen string) (Board, error) {
 	// [0]: piece placement
 	// [1]: active color
@@ -139,7 +160,7 @@ func ParseFEN(fen string) (Board, error) {
 		b.EPTargetSquare = idx
 	}
 
-	// check for short version; early exit
+	// check for short 'fen key' version; early exit
 	if len(fenParts) == 4 {
 		b.HalfMoveClock = 0
 		b.FullMoveNumber = 1
@@ -166,12 +187,20 @@ func ParseFEN(fen string) (Board, error) {
 }
 
 func (b Board) FEN() string {
+	return b.makeFEN(false)
+}
+
+func (b Board) FENKey() string {
+	return b.makeFEN(true)
+}
+
+func (b Board) makeFEN(keyOnly bool) string {
 	var sb strings.Builder
 
 	// [0]: piece placement
 	pos := Bits(1 << 63)
 	for row := 7; row >= 0; row-- {
-		blankCount := 0
+		var blankCount byte
 
 		for col := 7; col >= 0; col-- {
 			if b.All&pos != pos {
@@ -181,7 +210,7 @@ func (b Board) FEN() string {
 			}
 
 			if blankCount > 0 {
-				sb.WriteString(strconv.Itoa(blankCount))
+				sb.WriteByte('0' + blankCount)
 				blankCount = 0
 			}
 
@@ -229,7 +258,7 @@ func (b Board) FEN() string {
 		}
 
 		if blankCount > 0 {
-			sb.WriteString(strconv.Itoa(blankCount))
+			sb.WriteByte('0' + blankCount)
 		}
 
 		if row != 0 {
@@ -239,24 +268,32 @@ func (b Board) FEN() string {
 
 	// [1]: active color
 	sb.WriteByte(' ')
-	sb.WriteString(b.ActiveColor.String())
+	if b.ActiveColor == White {
+		sb.WriteByte('w')
+	} else {
+		sb.WriteByte('b')
+	}
 
 	// [2]: castling availability
-	sb.WriteByte(' ')
-	if b.Castle == 0 {
-		sb.WriteByte('-')
+	if benchCastlingAvailabilityMethod == 0 {
+		sb.WriteString(fenCastlingAvailability[b.Castle])
 	} else {
-		if b.Castle&1 == 1 {
-			sb.WriteByte('K')
-		}
-		if b.Castle&2 == 2 {
-			sb.WriteByte('Q')
-		}
-		if b.Castle&4 == 4 {
-			sb.WriteByte('k')
-		}
-		if b.Castle&8 == 8 {
-			sb.WriteByte('q')
+		sb.WriteByte(' ')
+		if b.Castle == 0 {
+			sb.WriteByte('-')
+		} else {
+			if b.Castle&1 == 1 {
+				sb.WriteByte('K')
+			}
+			if b.Castle&2 == 2 {
+				sb.WriteByte('Q')
+			}
+			if b.Castle&4 == 4 {
+				sb.WriteByte('k')
+			}
+			if b.Castle&8 == 8 {
+				sb.WriteByte('q')
+			}
 		}
 	}
 
@@ -267,6 +304,10 @@ func (b Board) FEN() string {
 	} else {
 		sq := squareNames[b.EPTargetSquare]
 		sb.WriteString(sq)
+	}
+
+	if keyOnly {
+		return sb.String()
 	}
 
 	// [4]: halfmove clock

@@ -6,6 +6,7 @@ import (
 
 func init() {
 	genSquareNames()
+
 	genBitBetween()
 	genBitAfter()
 
@@ -130,8 +131,8 @@ const (
 	epFrom = 0x00FF0000_0000FF00
 	epTo   = 0x000000FF_FF000000
 
-	ks = 1
-	qs = 2
+	ks uint8 = 1
+	qs uint8 = 2
 
 	ksIdx = 0
 	qsIdx = 1
@@ -141,6 +142,9 @@ var (
 	squareNames       [64]string
 	squareNameToIndex map[string]int
 	squareNameToBits  map[string]Bits
+
+	uciMoveStrings [0x3FFF]string
+	uciMovePromo   = [6]string{"", "n", "b", "r", "q", "k"}
 
 	epMask        [64]Bits
 	epTargetIndex [64]int
@@ -181,6 +185,19 @@ var (
 		{
 			1 << H8, //kingside
 			1 << A8, //queenside
+		},
+	}
+
+	castleSAN = [2]map[string]uint64{
+		// white
+		{
+			"O-O":   (King << 14) | (E1 << 7) | G1,
+			"O-O-O": (King << 14) | (E1 << 7) | C1,
+		},
+		// black
+		{
+			"O-O":   King<<14 | E8<<7 | G8,
+			"O-O-O": King<<14 | E8<<7 | C8,
 		},
 	}
 )
@@ -242,12 +259,23 @@ func genSquareNames() {
 
 	for file := 'a'; file <= 'h'; file++ {
 		for rank := 1; rank <= 8; rank++ {
-			pos := (rank-1)*8 + 7 - int(file-'a')
+			idx := (rank-1)*8 + 7 - int(file-'a')
 			name := fmt.Sprintf("%c%d", file, rank)
 
-			squareNames[pos] = name
-			squareNameToIndex[name] = pos
-			squareNameToBits[name] = 1 << pos
+			squareNames[idx] = name
+			squareNameToIndex[name] = idx
+			squareNameToBits[name] = 1 << idx
+		}
+	}
+
+	// gen uciMoveStrings
+	for i := 0; i < 64; i++ {
+		for j := i + 1; j < 64; j++ {
+			uciMove := i<<7 | j
+			uciMoveStrings[uciMove] = squareNames[i] + squareNames[j]
+
+			uciMove2 := j<<7 | i
+			uciMoveStrings[uciMove2] = squareNames[j] + squareNames[i]
 		}
 	}
 }

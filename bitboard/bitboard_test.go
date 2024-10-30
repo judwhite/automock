@@ -212,8 +212,6 @@ func TestBoard_Apply(t *testing.T) {
 			moves: []string{"e5d6"},
 			want:  "rnbqkb1r/ppp1pppp/3P1n2/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 3",
 		},
-
-		// position fen startpos moves e2e4 d7d5 d2d4
 	}
 
 	for _, c := range cases {
@@ -225,7 +223,7 @@ func TestBoard_Apply(t *testing.T) {
 				return
 			}
 
-			b2, err := b.Apply(c.moves)
+			b2, err := b.Apply(c.moves...)
 			if err != nil {
 				t.Error(err)
 				return
@@ -934,13 +932,13 @@ func TestBoard_LegalMoves(t *testing.T) {
 
 			for k := range gotMap {
 				if _, ok := wantMap[k]; !ok {
-					t.Errorf("'%s' is not a legal move.", k)
+					t.Errorf("FEN: '%s', '%s' is not a legal move.", c.fen, k)
 				}
 			}
 
 			for k := range wantMap {
 				if _, ok := gotMap[k]; !ok {
-					t.Errorf("'%s' is missing.", k)
+					t.Errorf("FEN: '%s', '%s' is missing.", c.fen, k)
 				}
 			}
 		})
